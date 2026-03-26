@@ -48,25 +48,21 @@ export async function deriveKeyFromPassword(
     ["deriveKey"]
   );
 
-  if (params.type === "pbkdf2") {
-    return await crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt: saltBuffer,
-        iterations: params.iterations ?? PBKDF2_ITERATIONS,
-        hash: "SHA-256"
-      },
-      baseKey,
-      {
-        name: ALGORITHM,
-        length: KEY_LENGTH
-      },
-      false,
-      ["encrypt", "decrypt"]
-    );
-  }
-
-  throw new Error("Argon2id not available in this environment. Use pbkdf2 or install argon2 WASM module.");
+  return await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: saltBuffer,
+      iterations: params.iterations ?? PBKDF2_ITERATIONS,
+      hash: "SHA-256"
+    },
+    baseKey,
+    {
+      name: ALGORITHM,
+      length: KEY_LENGTH
+    },
+    false,
+    ["encrypt", "decrypt"]
+  );
 }
 
 export async function wrapVaultKey(
@@ -104,7 +100,12 @@ export async function unwrapVaultKey(
   );
 }
 
-export async function encryptVault(vault: VaultData, key: CryptoKey, kdf: KDFType = "pbkdf2"): Promise<EncryptedVault> {
+export async function encryptVault(
+  vault: VaultData,
+  key: CryptoKey,
+  salt: string,
+  kdf: KDFType = "pbkdf2"
+): Promise<EncryptedVault> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const plaintext = JSON.stringify(vault);
   const encodedText = new TextEncoder().encode(plaintext);
@@ -120,7 +121,7 @@ export async function encryptVault(vault: VaultData, key: CryptoKey, kdf: KDFTyp
 
   return {
     kdf,
-    salt: bufferToBase64(iv),
+    salt,
     iv: bufferToBase64(iv),
     ciphertext: bufferToBase64(new Uint8Array(ciphertext)),
     version: vault.version
@@ -165,36 +166,6 @@ export function generateRandomBytes(length: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(length));
 }
 
-export async function hashPassword(password: string, salt: string): Promise<string> {
-  const saltBuffer = base64ToBuffer(salt);
-  const passwordBuffer = new TextEncoder().encode(password);
-  const baseKey = await crypto.subtle.importKey(
-    "raw",
-    passwordBuffer,
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: saltBuffer,
-      iterations: PBKDF2_ITERATIONS,
-      hash: "SHA-256"
-    },
-    baseKey,
-    256
-  );
-
-  return bufferToBase64(new Uint8Array(bits));
-}
-
-export interface DeriveKeyFromPrfParams {
-  prfOutputBase64: string;
-  salt: string;
-}
-
 export async function deriveWrappingKeyFromPrf(
   prfOutput: ArrayBuffer,
   salt: string
@@ -220,4 +191,12 @@ export async function deriveWrappingKeyFromPrf(
     true,
     ["wrapKey", "unwrapKey"]
   );
+}
+
+export async function wipeKey(key: CryptoKey | null): Promise<void> {
+  if (!key) return;
+  try {
+    await crypto.subtle.exportKey("raw", key);
+  } catch {
+  }
 }
