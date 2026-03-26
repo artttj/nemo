@@ -4,11 +4,458 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nemo Password Manager</title>
-  <link rel="stylesheet" href="/tactical.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg-void: #0A0A0F;
+      --bg-card: #12121A;
+      --bg-elevated: #1A1A24;
+      --fg-primary: #E0E0E0;
+      --fg-secondary: #8A8F98;
+      --fg-muted: #4A4F5A;
+      --accent-primary: #00FF88;
+      --accent-secondary: #00D4FF;
+      --accent-warning: #FFB800;
+      --accent-destructive: #FF3366;
+      --accent-success: #00FF88;
+      --border-subtle: rgba(42, 42, 58, 0.6);
+      --glow-primary: 0 0 20px rgba(0, 255, 136, 0.3);
+      --scanline-color: rgba(0, 0, 0, 0.1);
+    }
+
+    @font-face {
+      font-family: 'Orbitron';
+      font-style: normal;
+      font-weight: 700;
+      src: url('https://fonts.gstatic.com/s/orbitron/v30/yMJMMIlzdpvBhQ2_Q2p0qR0c9Qw5uXfQ.woff2') format('woff2');
+    }
+
+    @font-face {
+      font-family: 'Orbitron';
+      font-style: normal;
+      font-weight: 900;
+      src: url('https://fonts.gstatic.com/s/orbitron/v30/yMJMMIlzdpvBhQ2_Q2p0qR0c9Qw5uXfQ.woff2') format('woff2');
+    }
+
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 400;
+      src: url('https://fonts.gstatic.com/s/jetbrainsmono/v22/tDbY2o-flEEny0FZhsfKu5WU4zr3EbzL2HdMg.woff2') format('woff2');
+    }
+
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 500;
+      src: url('https://fonts.gstatic.com/s/jetbrainsmono/v22/tDbY2o-flEEny0FZhsfKu5WU4zr3EbzL2HdMg.woff2') format('woff2');
+    }
+
+    body {
+      background: var(--bg-void);
+      color: var(--fg-primary);
+      font-family: 'JetBrains Mono', monospace;
+      margin: 0;
+      padding: 0;
+    }
+
+    .nemo-popup {
+      width: 380px;
+      min-height: 500px;
+      max-height: 700px;
+      background: var(--bg-void);
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--fg-primary);
+      overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
+    }
+
+    .nemo-popup * {
+      box-sizing: border-box;
+    }
+
+    .scanline-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        var(--scanline-color) 2px,
+        var(--scanline-color) 4px
+      );
+      z-index: 9999;
+      opacity: 0.5;
+    }
+
+    .hud-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    .hud-card::before,
+    .hud-card::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: var(--fg-muted);
+      border-style: solid;
+      pointer-events: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .hud-card::before {
+      top: 0;
+      left: 0;
+      border-width: 1px 0 0 1px;
+    }
+
+    .hud-card::after {
+      bottom: 0;
+      right: 0;
+      border-width: 0 1px 1px 0;
+    }
+
+    .hud-card:hover::before,
+    .hud-card:hover::after {
+      border-color: var(--accent-primary);
+    }
+
+    .hud-header {
+      background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-card) 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hud-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 14px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .hud-title.text-success {
+      color: var(--accent-success);
+      text-shadow: 0 0 8px var(--accent-success);
+    }
+
+    .hud-title.text-neon {
+      color: var(--accent-primary);
+      text-shadow: 0 0 8px var(--accent-primary);
+    }
+
+    .hud-title.text-secondary {
+      color: var(--accent-secondary);
+      text-shadow: 0 0 8px var(--accent-secondary);
+    }
+
+    .hud-title.text-destructive {
+      color: var(--accent-destructive);
+      text-shadow: 0 0 8px var(--accent-destructive);
+    }
+
+    .hud-title.text-warning {
+      color: var(--accent-warning);
+      text-shadow: 0 0 8px var(--accent-warning);
+    }
+
+    .chamfered {
+      clip-path: polygon(
+        8px 0, calc(100% - 8px) 0,
+        100% 8px,
+        100% calc(100% - 8px),
+        calc(100% - 8px) 100%,
+        8px 100%,
+        0 calc(100% - 8px),
+        0 8px
+      );
+    }
+
+    .chamfered-sm {
+      clip-path: polygon(
+        4px 0, calc(100% - 4px) 0,
+        100% 4px,
+        100% calc(100% - 4px),
+        calc(100% - 4px) 100%,
+        4px 100%,
+        0 calc(100% - 4px),
+        0 4px
+      );
+    }
+
+    .tactical-button {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--fg-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 16px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .tactical-button::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid transparent;
+      transition: border-color 0.15s ease;
+      pointer-events: none;
+    }
+
+    .tactical-button:hover {
+      background: rgba(0, 255, 136, 0.08);
+      border-color: var(--accent-primary);
+    }
+
+    .tactical-button:hover::before {
+      border-color: var(--accent-primary);
+      inset: -1px;
+    }
+
+    .tactical-button:active {
+      transform: scale(0.98);
+      box-shadow: var(--glow-primary);
+    }
+
+    .tactical-button-primary {
+      background: var(--accent-primary);
+      color: var(--bg-void);
+      border-color: var(--accent-primary);
+      font-weight: 700;
+    }
+
+    .tactical-button-primary:hover {
+      background: #00FF88;
+      box-shadow: var(--glow-primary);
+    }
+
+    .tactical-button-destructive {
+      border-color: var(--accent-destructive);
+      color: var(--accent-destructive);
+    }
+
+    .tactical-button-destructive:hover {
+      background: rgba(255, 51, 102, 0.1);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.3);
+    }
+
+    .tactical-input {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--fg-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      padding: 12px 16px;
+      width: 100%;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .tactical-input::-moz-placeholder {
+      color: var(--fg-muted);
+    }
+
+    .tactical-input::placeholder {
+      color: var(--fg-muted);
+    }
+
+    .tactical-input:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.2);
+    }
+
+    .entry-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .entry-card:hover {
+      background: rgba(0, 255, 136, 0.05);
+      border-color: var(--accent-primary);
+    }
+
+    .entry-card::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 6px;
+      height: 6px;
+      background: var(--fg-muted);
+      transition: background 0.15s ease;
+    }
+
+    .entry-card:hover::before {
+      background: var(--accent-primary);
+      box-shadow: 0 0 8px var(--accent-primary);
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    .status-indicator.locked {
+      background: var(--accent-warning);
+      box-shadow: 0 0 10px var(--accent-warning);
+    }
+
+    .status-indicator.unlocked {
+      background: var(--accent-success);
+      box-shadow: 0 0 10px var(--accent-success);
+    }
+
+    .status-indicator::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      opacity: 0.3;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 5px currentColor;
+      }
+      50% {
+        box-shadow: 0 0 15px currentColor, 0 0 25px currentColor;
+      }
+    }
+
+    .pulse {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    .scan-line {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .scan-line::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+      animation: scan-horizontal 3s linear infinite;
+      opacity: 0.3;
+    }
+
+    @keyframes scan-horizontal {
+      0% {
+        transform: translateY(-100%);
+      }
+      100% {
+        transform: translateY(100%);
+      }
+    }
+
+    .text-success {
+      color: var(--accent-success);
+      text-shadow: 0 0 8px var(--accent-success);
+    }
+
+    .text-warning {
+      color: var(--accent-warning);
+      text-shadow: 0 0 8px var(--accent-warning);
+    }
+
+    .text-secondary {
+      color: var(--accent-secondary);
+    }
+
+    .text-destructive {
+      color: var(--accent-destructive);
+      text-shadow: 0 0 8px var(--accent-destructive);
+    }
+
+    .text-primary {
+      color: var(--fg-primary);
+    }
+
+    .text-muted {
+      color: var(--fg-muted);
+    }
+
+    .border-success {
+      border-color: var(--accent-success);
+    }
+
+    .border-warning {
+      border-color: var(--accent-warning);
+    }
+
+    .border-destructive {
+      border-color: var(--accent-destructive);
+    }
+
+    .border-subtle {
+      border-color: var(--border-subtle);
+    }
+
+    .bg-elevated {
+      background: var(--bg-elevated);
+    }
+
+    .cursor-blink::after {
+      content: '_';
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% {
+        opacity: 1;
+      }
+      51%, 100% {
+        opacity: 0;
+      }
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
   <script type="module" crossorigin src="/chunks/popup-X4swTjHm.js"></script>
   <link rel="modulepreload" crossorigin href="/chunks/_virtual_wxt-html-plugins-DPbbfBKe.js">
 </head>
-<body class="nemo-body">
+<body>
   <div id="root"></div>
 </body>
 </html>
