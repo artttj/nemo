@@ -13,6 +13,7 @@ export {
   generateSalt,
   generateVaultKey,
   deriveKeyFromPassword,
+  deriveWrappingKeyFromPrf,
   wrapVaultKey,
   unwrapVaultKey,
   encryptVault,
@@ -21,7 +22,7 @@ export {
   base64ToBuffer,
   generateUUID,
   generateRandomBytes,
-  hashPassword,
+  wipeKey,
   type KDFType,
   type KeyDerivationParams
 } from "./crypto";
