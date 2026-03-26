@@ -9,6 +9,7 @@ declare module "wxt/browser" {
     | "/icon/icon.svg"
     | "/options.js"
     | "/popup.html"
+    | "/tactical.css"
     | "/webauthn.html"
   type HtmlPublicPath = Extract<PublicPath, `${string}.html`>
   export interface WxtRuntime {

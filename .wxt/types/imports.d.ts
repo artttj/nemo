@@ -76,6 +76,8 @@ declare global {
   const searchEntries: typeof import('/private/var/www/nemo/utils/vault')['searchEntries']
   const storage: typeof import('wxt/storage')['storage']
   const storeCredential: typeof import('/private/var/www/nemo/utils/auth')['storeCredential']
+  const tacticalEntryModal: typeof import('/private/var/www/nemo/components/tactical-entry-modal')['default']
+  const tacticalPopup: typeof import('/private/var/www/nemo/components/tactical-popup')['default']
   const unlockVault: typeof import('/private/var/www/nemo/utils/vault-ops')['unlockVault']
   const unwrapVaultKey: typeof import('/private/var/www/nemo/utils/crypto')['unwrapVaultKey']
   const updateEntry: typeof import('/private/var/www/nemo/utils/vault')['updateEntry']
