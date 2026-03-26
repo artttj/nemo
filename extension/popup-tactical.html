@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nemo Vault</title>
+    <link rel="stylesheet" href="popup-tactical.css">
+</head>
+<body>
+    <div id="app">
+        <!-- SCREEN 1: LOCKED -->
+        <div id="locked-screen" class="screen locked-screen">
+            <div class="panel">
+                <!-- Status Strip -->
+                <div class="status-strip">
+                    <span class="status-label">STATUS</span>
+                    <span class="status-value status-locked">LOCKED</span>
+                </div>
+
+                <!-- Content -->
+                <div class="panel-content">
+                    <div class="header-row">
+                        <div class="title-block">
+                            <span class="panel-id">SYS.VAULT.01</span>
+                            <h1 class="panel-title">Vault Locked</h1>
+                        </div>
+                        <div class="status-indicator">
+                            <span class="indicator-dot"></span>
+                            <span class="indicator-text">SECURE</span>
+                        </div>
+                    </div>
+
+                    <p class="panel-desc">
+                        Authorization required to access encrypted volume.
+                    </p>
+
+                    <!-- Data Readout -->
+                    <div class="readout">
+                        <div class="readout-row">
+                            <span class="readout-label">ENCRYPTION</span>
+                            <span class="readout-value">AES-256-GCM</span>
+                        </div>
+                        <div class="readout-row">
+                            <span class="readout-label">CREDENTIALS</span>
+                            <span class="readout-value">0</span>
+                        </div>
+                        <div class="readout-row">
+                            <span class="readout-label">LAST SYNC</span>
+                            <span class="readout-value">--:--:--Z</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="panel-actions">
+                        <button class="btn btn-primary" data-action="unlock">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                <rect x="6" y="9" width="12" height="10" rx="1"/>
+                                <path d="M12 9V5a3 3 0 00-6 0v4"/>
+                            </svg>
+                            <span>Authorize</span>
+                        </button>
+                        <div class="secondary-actions">
+                            <button class="btn btn-secondary" data-action="biometric">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                    <path d="M8 10v4"/>
+                                    <path d="M16 10v4"/>
+                                    <path d="M6 14c0 3.3 2.7 6 6 6s6-2.7 6-6-6-2.7-6-6-6"/>
+                                    <path d="M12 2v4"/>
+                                </svg>
+                                <span>Biometric</span>
+                            </button>
+                            <button class="btn btn-ghost" data-action="recover">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9"/>
+                                    <path d="M21 3v6h-6"/>
+                                    <path d="M3 12c0-4.97 4.03-9 9-9"/>
+                                    <path d="M3 21v-6h6"/>
+                                </svg>
+                                <span>Recover</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="panel-footer">
+                    <span class="serial">NEMO.SYS // SECURE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: VAULT LIST -->
+        <div id="vault-screen" class="screen vault-screen">
+            <div class="panel">
+                <!-- Status Strip -->
+                <div class="status-strip">
+                    <span class="status-label">STATUS</span>
+                    <span class="status-value status-unlocked">UNLOCKED</span>
+                </div>
+
+                <!-- Content -->
+                <div class="panel-content">
+                    <!-- Header -->
+                    <div class="header-row vault-header">
+                        <span class="panel-id">SYS.VAULT.01</span>
+                        <div class="header-actions">
+                            <button class="icon-btn" data-action="lock" title="Lock">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                    <rect x="5" y="8" width="14" height="11" rx="2"/>
+                                    <path d="M8 8V6a4 4 0 018 0v2"/>
+                                </svg>
+                            </button>
+                            <button class="icon-btn" data-action="settings" title="Settings">
+                                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                    <circle cx="12" cy="12" r="3"/>
+                                    <path d="M12 1v4"/><path d="M12 19v4"/>
+                                    <path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/>
+                                    <path d="M1 12h4"/><path d="M19 12h4"/>
+                                    <path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="search-section">
+                        <div class="search-wrapper">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="M21 21l-4.35-4.35"/>
+                            </svg>
+                            <input type="text" class="search-input" placeholder="SEARCH..." data-input="search">
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="filters-section">
+                        <button class="filter-btn active" data-filter="all">ALL</button>
+                        <button class="filter-btn" data-filter="logins">LOGINS</button>
+                        <button class="filter-btn" data-filter="cards">CARDS</button>
+                        <button class="filter-btn" data-filter="notes">NOTES</button>
+                    </div>
+
+                    <!-- List -->
+                    <div class="list-section">
+                        <div class="vault-list" data-list="credentials">
+                            <div class="empty-state">
+                                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                    <path d="M7 11V7a5 5 0 0110 0v4"/>
+                                </svg>
+                                <p class="empty-text">NO CREDENTIALS</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Button -->
+                    <div class="add-section">
+                        <button class="btn-add" data-action="add">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+                                <path d="M12 5v14"/>
+                                <path d="M5 12h14"/>
+                            </svg>
+                            <span>Add Credential</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="panel-footer">
+                    <span class="serial">NEMO.SYS // SECURE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
