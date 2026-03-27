@@ -6,7 +6,10 @@
         credentials: [],
         filter: 'all',
         search: '',
-        expandedItem: null
+        expandedItem: null,
+        isUnlocking: false,
+        biometricAvailable: false,
+        lastSync: null
     };
 
     const DOM = {
@@ -14,7 +17,10 @@
         vaultScreen: document.getElementById('vault-screen'),
         vaultList: document.querySelector('[data-list="credentials"]'),
         searchInput: document.querySelector('[data-input="search"]'),
-        filterBtns: document.querySelectorAll('[data-filter]')
+        filterBtns: document.querySelectorAll('[data-filter]'),
+        vaultMeta: document.getElementById('vault-meta'),
+        unlockBtn: document.getElementById('unlock-btn'),
+        masterPasswordLink: document.getElementById('master-password-link')
     };
 
     const ICONS = {
@@ -32,17 +38,62 @@
     }
 
     function loadState() {
-        chrome.storage.local.get(['locked', 'credentials'], (result) => {
+        chrome.storage.local.get(['locked', 'credentials', 'lastSync'], (result) => {
             STATE.locked = result.locked !== false;
             STATE.credentials = result.credentials || [];
+            STATE.lastSync = result.lastSync || null;
             updateScreen();
+            updateVaultMeta();
+            detectBiometricCapability();
         });
+    }
+
+    function detectBiometricCapability() {
+        if (typeof chrome !== 'undefined' && chrome.authentication) {
+            chrome.authentication.isAvailable('biometric', (available) => {
+                STATE.biometricAvailable = available === true;
+                updatePrimaryAction();
+            });
+        } else {
+            STATE.biometricAvailable = false;
+            updatePrimaryAction();
+        }
+    }
+
+    function updatePrimaryAction() {
+        if (!DOM.unlockBtn) return;
+        
+        if (STATE.biometricAvailable) {
+            DOM.unlockBtn.textContent = 'Unlock with biometrics';
+        }
+    }
+
+    function updateVaultMeta() {
+        if (!DOM.vaultMeta) return;
+        
+        const count = STATE.credentials.length;
+        const syncText = STATE.lastSync 
+            ? `Last synced ${formatSyncTime(STATE.lastSync)}` 
+            : 'Offline';
+        
+        DOM.vaultMeta.textContent = `${count} ${count === 1 ? 'password' : 'passwords'} · ${syncText}`;
+    }
+
+    function formatSyncTime(timestamp) {
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.floor(hours / 24)}d ago`;
     }
 
     function saveState() {
         chrome.storage.local.set({
             locked: STATE.locked,
-            credentials: STATE.credentials
+            credentials: STATE.credentials,
+            lastSync: STATE.lastSync || Date.now()
         });
     }
 
@@ -64,8 +115,13 @@
                     addSampleCredential();
                     break;
                 case 'sync':
+                    handleSync();
+                    break;
                 case 'biometric':
+                    handleBiometric();
+                    break;
                 case 'recover':
+                    handleRecovery();
                     break;
             }
         });
@@ -113,9 +169,53 @@
     }
 
     function unlock() {
-        STATE.locked = false;
+        if (STATE.isUnlocking) return;
+        
+        setUnlocking(true);
+        
+        setTimeout(() => {
+            STATE.locked = false;
+            STATE.isUnlocking = false;
+            saveState();
+            updateScreen();
+            setUnlocking(false);
+        }, 400);
+    }
+
+    function handleSync() {
+        STATE.lastSync = Date.now();
         saveState();
-        updateScreen();
+        updateVaultMeta();
+    }
+
+    function handleBiometric() {
+        if (!STATE.biometricAvailable) {
+            alert('Biometric unlock is not available on this device.');
+            return;
+        }
+        unlock();
+    }
+
+    function handleRecovery() {
+        alert('Recovery flow not implemented yet.');
+    }
+
+    function setUnlocking(loading) {
+        STATE.isUnlocking = loading;
+        if (DOM.unlockBtn) {
+            const textEl = DOM.unlockBtn.querySelector('.btn-text');
+            const loaderEl = DOM.unlockBtn.querySelector('.btn-loader');
+            
+            if (loading) {
+                DOM.unlockBtn.disabled = true;
+                if (textEl) textEl.textContent = 'Unlocking...';
+                if (loaderEl) loaderEl.hidden = false;
+            } else {
+                DOM.unlockBtn.disabled = false;
+                if (textEl) textEl.textContent = STATE.biometricAvailable ? 'Unlock with biometrics' : 'Unlock vault';
+                if (loaderEl) loaderEl.hidden = true;
+            }
+        }
     }
 
     function lock() {
@@ -128,6 +228,9 @@
     function updateScreen() {
         DOM.lockedScreen.classList.toggle('active', STATE.locked);
         DOM.vaultScreen.classList.toggle('active', !STATE.locked);
+        if (!STATE.locked) {
+            updateVaultMeta();
+        }
     }
 
     function toggleItem(itemId) {

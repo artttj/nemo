@@ -1,16 +1,23 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { VaultEntry } from '~/utils/types'
+import { LockedView } from '~/components/locked-view'
+import { AddEditModal } from '~/components/add-edit-modal'
+import { SettingsModal } from '~/components/settings-modal'
+import { EntryDetailModal } from '~/components/entry-detail-modal'
 import '~/style.css'
 
-type FilterType = 'all' | 'favorite' | 'recent'
-
-interface AppProps {}
+type FilterType = 'all' | 'starred' | 'recent'
 
 type VaultState = {
   isUnlocked: boolean
   vault: { entries: VaultEntry[]; settings: { autoLockMinutes: number; theme: 'light' | 'dark' | 'system' } } | null
-  metadata: { version: string; vaultId: string; createdAt: number; updatedAt: number; deviceId: string; salt: string; kdf: string } | null
+  metadata: { version: string; vaultId: string; createdAt: number; updatedAt: number } | null
   lastActivity: number
+}
+
+type VaultExistsState = {
+  exists: boolean
+  hasCredential: boolean
 }
 
 export default function App() {
@@ -20,36 +27,42 @@ export default function App() {
     metadata: null,
     lastActivity: Date.now()
   })
+  const [vaultExists, setVaultExists] = useState<VaultExistsState | null>(null)
+  const [hasPinSetup, setHasPinSetup] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [viewingEntry, setViewingEntry] = useState<VaultEntry | null>(null)
   const [editingEntry, setEditingEntry] = useState<VaultEntry | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [isUnlocking, setIsUnlocking] = useState(false)
 
   useEffect(() => {
     loadStateWithRetry()
   }, [])
 
-  useEffect(() => {
-    if (!state.isUnlocked) return
-    inputRef.current?.focus()
-  }, [state.isUnlocked])
-
   const loadStateWithRetry = async (retries = 3) => {
     for (let i = 0; i < retries; i++) {
       try {
-        const response = await chrome.runtime.sendMessage({ type: 'GET_VAULT_STATE' })
-        if (response.success) {
-          setState(response.data)
+        const [stateResponse, existsResponse, pinResponse] = await Promise.all([
+          chrome.runtime.sendMessage({ type: 'GET_VAULT_STATE' }),
+          chrome.runtime.sendMessage({ type: 'CHECK_VAULT_EXISTS' }),
+          chrome.runtime.sendMessage({ type: 'HAS_PIN_SETUP' })
+        ])
+        if (stateResponse.success) {
+          setState(stateResponse.data)
+          if (existsResponse.success) {
+            setVaultExists(existsResponse.data)
+          }
+          if (pinResponse.success) {
+            setHasPinSetup(pinResponse.data)
+          }
           break
         }
       } catch (error: any) {
         if (error.message?.includes('Receiving end does not exist')) {
-          console.log('Background not ready, retrying...')
           if (i === retries - 1) {
             setError('Extension starting up. Please wait.')
           } else {
@@ -58,7 +71,6 @@ export default function App() {
           }
         } else {
           setError(String(error))
-          console.error('Failed to load state:', error)
         }
       } finally {
         setLoading(false)
@@ -66,224 +78,165 @@ export default function App() {
     }
   }
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message })
-    setTimeout(() => setNotification(null), 2000)
-  }
-
   const handleUnlock = async () => {
     try {
+      setIsUnlocking(true)
       const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT' })
       if (response.success) {
-        setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+        setTimeout(() => {
+          setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+          setIsUnlocking(false)
+        }, 800)
       } else {
         throw new Error(response.error || 'Failed to unlock vault')
       }
     } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Unlock error:', error)
-      }
+      setError(String(error))
+      setIsUnlocking(false)
     }
   }
 
   const handleCreate = async () => {
     try {
+      setIsUnlocking(true)
       const response = await chrome.runtime.sendMessage({ type: 'CREATE_VAULT' })
       if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          isUnlocked: true,
-          metadata: response.data,
-          vault: { entries: [], settings: { autoLockMinutes: 5, theme: 'dark' } }
-        }))
+        setTimeout(() => {
+          setState((prev: any) => ({
+            ...prev,
+            isUnlocked: true,
+            metadata: response.data,
+            vault: { entries: [], settings: { autoLockMinutes: 15, theme: 'dark' } }
+          }))
+          setIsUnlocking(false)
+        }, 800)
       } else {
         throw new Error(response.error || 'Failed to create vault')
       }
     } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Create error:', error)
-      }
+      setError(String(error))
+      setIsUnlocking(false)
+    }
+  }
+
+  const handleRecoveryCreate = async (phrase: string) => {
+    const response = await chrome.runtime.sendMessage({ type: 'CREATE_VAULT_FROM_RECOVERY', payload: phrase })
+    if (response.success) {
+      setState((prev: any) => ({
+        ...prev,
+        isUnlocked: true,
+        metadata: response.data,
+        vault: { entries: [], settings: { autoLockMinutes: 15, theme: 'dark' } }
+      }))
+    } else {
+      throw new Error(response.error || 'Failed to create vault')
+    }
+  }
+
+  const handleRecoveryUnlock = async (phrase: string) => {
+    const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT_FROM_RECOVERY', payload: phrase })
+    if (response.success) {
+      setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+    } else {
+      throw new Error(response.error || 'Failed to unlock vault')
+    }
+  }
+
+  const handlePinUnlock = async (pin: string) => {
+    const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT_WITH_PIN', payload: pin })
+    if (response.success) {
+      setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+    } else {
+      throw new Error(response.error || 'Failed to unlock with PIN')
     }
   }
 
   const handleLock = async () => {
-    try {
-      await chrome.runtime.sendMessage({ type: 'LOCK_VAULT' })
-      setState({
-        isUnlocked: false,
-        vault: null,
-        metadata: null,
-        lastActivity: Date.now()
-      })
-    } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Lock error:', error)
-      }
-    }
+    await chrome.runtime.sendMessage({ type: 'LOCK_VAULT' })
+    setState({
+      isUnlocked: false,
+      vault: null,
+      metadata: null,
+      lastActivity: Date.now()
+    })
   }
 
   const handleAddEntry = async (entry: Omit<VaultEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'ADD_ENTRY',
-        payload: entry
-      })
-      if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          vault: prev.vault
-            ? { ...prev.vault, entries: [...prev.vault.entries, response.data] }
-            : null
-        }))
-        showNotification('success', 'Entry added')
-      }
-      setShowAddModal(false)
-    } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Add entry error:', error)
-      }
+    const response = await chrome.runtime.sendMessage({ type: 'ADD_ENTRY', payload: entry })
+    if (response.success) {
+      setState((prev: any) => ({
+        ...prev,
+        vault: prev.vault ? { ...prev.vault, entries: [...prev.vault.entries, response.data] } : null
+      }))
     }
+    setShowAddModal(false)
   }
 
   const handleEditEntry = async (updates: Partial<VaultEntry>) => {
     if (!editingEntry) return
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'UPDATE_ENTRY',
-        payload: { id: editingEntry.id, updates }
-      })
-      if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          vault: prev.vault
-            ? {
-                ...prev.vault,
-                entries: prev.vault.entries.map((e: any) =>
-                  e.id === editingEntry.id ? response.data : e
-                )
-              }
-            : null
-        }))
-        showNotification('success', 'Entry updated')
-      }
-      setEditingEntry(null)
-    } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Edit entry error:', error)
-      }
+    const response = await chrome.runtime.sendMessage({
+      type: 'UPDATE_ENTRY',
+      payload: { id: editingEntry.id, updates }
+    })
+    if (response.success) {
+      setState((prev: any) => ({
+        ...prev,
+        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.map((e: any) => e.id === editingEntry.id ? response.data : e) } : null
+      }))
     }
+    setEditingEntry(null)
+    setViewingEntry(null)
   }
 
   const handleDeleteEntry = async (id: string) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'DELETE_ENTRY',
-        payload: id
-      })
-      if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          vault: prev.vault
-            ? { ...prev.vault, entries: prev.vault.entries.filter((e: any) => e.id !== id) }
-            : null
-        }))
-        showNotification('success', 'Entry deleted')
-      }
-    } catch (error: any) {
-      if (error.message?.includes('Receiving end does not exist')) {
-        setError('Extension starting up. Please wait.')
-      } else {
-        setError(String(error))
-        console.error('Delete entry error:', error)
-      }
+    const response = await chrome.runtime.sendMessage({ type: 'DELETE_ENTRY', payload: id })
+    if (response.success) {
+      setState((prev: any) => ({
+        ...prev,
+        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.filter((e: any) => e.id !== id) } : null
+      }))
     }
-  }
-
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query)
-    if (!query) return
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'SEARCH_ENTRIES',
-        payload: query
-      })
-    } catch (error) {
-      console.error('Search error:', error)
-    }
+    setViewingEntry(null)
+    setEditingEntry(null)
   }
 
   const handleExport = async () => {
-    try {
-      const response = await chrome.runtime.sendMessage({ type: 'EXPORT_VAULT' })
-      if (response.success) {
-        const blob = new Blob([response.data], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `nemo-vault-${new Date().toISOString().split('T')[0]}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        showNotification('success', 'Vault exported')
-      }
-    } catch (error: any) {
-      setError(String(error))
-      console.error('Export error:', error)
+    const response = await chrome.runtime.sendMessage({ type: 'EXPORT_VAULT' })
+    if (response.success) {
+      const blob = new Blob([response.data], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nemo-backup-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
     }
   }
 
   const handleImport = async (data: string) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'IMPORT_VAULT',
-        payload: data
-      })
-      if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          vault: response.data
-        }))
-        showNotification('success', 'Vault imported')
-      } else {
-        throw new Error(response.error || 'Failed to import vault')
-      }
-    } catch (error: any) {
-      setError(String(error))
-      console.error('Import error:', error)
+    const response = await chrome.runtime.sendMessage({ type: 'IMPORT_VAULT', payload: data })
+    if (response.success) {
+      setState((prev: any) => ({ ...prev, vault: response.data }))
     }
   }
 
-  const handleSettingsChange = async (settings: Partial<{ autoLockMinutes: number; theme: 'light' | 'dark' | 'system' }>) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'UPDATE_SETTINGS',
-        payload: settings
-      })
-      if (response.success) {
-        setState((prev: any) => ({
-          ...prev,
-          vault: prev.vault
-            ? { ...prev.vault, settings: { ...prev.vault.settings, ...settings } }
-            : null
-        }))
-      }
-    } catch (error: any) {
-      setError(String(error))
-      console.error('Settings error:', error)
+  const handleSettingsChange = async (settings: Partial<{ autoLockMinutes: number }>) => {
+    await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', payload: settings })
+    setState((prev: any) => ({
+      ...prev,
+      vault: prev.vault ? { ...prev.vault, settings: { ...prev.vault.settings, ...settings } } : null
+    }))
+  }
+
+  const handleEditFromDetail = () => {
+    setEditingEntry(viewingEntry)
+    setViewingEntry(null)
+    setShowAddModal(true)
+  }
+
+  const handleDeleteFromDetail = () => {
+    if (viewingEntry) {
+      handleDeleteEntry(viewingEntry.id)
     }
   }
 
@@ -295,22 +248,14 @@ export default function App() {
     .filter((entry: any) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
-        const matchesSearch =
-          entry.title.toLowerCase().includes(query) ||
+        return entry.title.toLowerCase().includes(query) ||
           (entry.username?.toLowerCase().includes(query) ?? false) ||
-          (entry.url?.toLowerCase().includes(query) ?? false) ||
-          (entry.tags?.some((t: string) => t.toLowerCase().includes(query)) ?? false) ||
-          (entry.notes?.toLowerCase().includes(query) ?? false)
-        if (!matchesSearch) return false
+          (entry.url?.toLowerCase().includes(query) ?? false)
       }
-
       switch (activeFilter) {
-        case 'favorite':
-          return entry.favorite === true
-        case 'recent':
-          return entry.updatedAt > oneWeekAgo
-        default:
-          return true
+        case 'starred': return entry.favorite === true
+        case 'recent': return entry.updatedAt > oneWeekAgo
+        default: return true
       }
     })
     .sort((a: any, b: any) => {
@@ -319,24 +264,12 @@ export default function App() {
       return b.updatedAt - a.updatedAt
     })
 
-  const filterCounts = {
-    all: allEntries.length,
-    favorite: allEntries.filter((e: any) => e.favorite).length,
-    recent: allEntries.filter((e: any) => e.updatedAt > oneWeekAgo).length
-  }
-
-  const filters: { key: FilterType; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'favorite', label: 'Starred' },
-    { key: 'recent', label: 'Recent' }
-  ]
-
   if (loading) {
     return (
-      <div className="w-[380px] h-[580px] flex items-center justify-center bg-surface">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-2 border-primary border-t-0 border-b-0 border-l-0 animate-spin"></div>
-          <span className="text-[14px] text-fg-muted">Nemo</span>
+      <div className="w-[400px] min-h-[560px] flex items-center justify-center bg-[var(--void)]">
+        <div className="text-center">
+          <div className="w-8 h-8 mx-auto mb-3 rounded-lg bg-[var(--gold)] animate-pulse"></div>
+          <p className="text-[var(--text-secondary)] text-sm">Loading Nemo...</p>
         </div>
       </div>
     )
@@ -344,118 +277,232 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="w-[380px] max-h-[600px] bg-surface p-6">
-        <div className="bg-destructive/6 border border-destructive/12 rounded-xl p-5">
-          <h3 className="text-[15px] font-semibold text-fg-primary mb-2">Something went wrong</h3>
-          <p className="text-[13px] text-fg-secondary leading-relaxed">{error}</p>
-          <button
-            onClick={() => { setError(null); loadStateWithRetry() }}
-            className="mt-4 w-full"
-          >
-            Try Again
-          </button>
+      <div className="w-[400px] min-h-[560px] p-8 flex flex-col items-center justify-center bg-[var(--void)]">
+        <div className="w-full p-4 mb-4 bg-[var(--danger-bg)] rounded-xl border border-[var(--danger)] border-opacity-20">
+          <p className="text-[var(--danger)] text-sm font-medium">{error}</p>
         </div>
+        <button 
+          onClick={() => { setError(null); loadStateWithRetry() }}
+          className="px-6 py-3 nemo-button-secondary"
+        >
+          Try again
+        </button>
       </div>
     )
   }
 
   if (!state.isUnlocked) {
     return (
-      <div className="w-[380px] bg-surface">
-        <LockedView onUnlock={handleUnlock} onCreate={handleCreate} />
-      </div>
+      <LockedView 
+        onUnlock={handleUnlock} 
+        onCreate={handleCreate} 
+        onRecoveryCreate={handleRecoveryCreate}
+        onRecoveryUnlock={handleRecoveryUnlock}
+        onPinUnlock={handlePinUnlock}
+        vaultExists={vaultExists?.exists}
+        hasCredential={vaultExists?.hasCredential}
+        hasPinSetup={hasPinSetup}
+        entryCount={allEntries.length}
+        lastSync={state.lastActivity}
+      />
     )
   }
 
+  const entryCount = allEntries.length
+  const starredCount = allEntries.filter((e: any) => e.favorite).length
+
+  const getFaviconUrl = (url: string | undefined): string | null => {
+    if (!url) return null
+    try {
+      const urlObj = new URL(url)
+      return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`
+    } catch {
+      return null
+    }
+  }
+
+  const getDomain = (url: string | undefined): string => {
+    if (!url) return ''
+    try {
+      const urlObj = new URL(url)
+      return urlObj.hostname.replace('www.', '')
+    } catch {
+      return ''
+    }
+  }
+
+  const formatLastActive = (timestamp: number): string => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000)
+    if (seconds < 60) return 'just now'
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
+  }
+
   return (
-    <div className="w-[380px] h-[580px] bg-surface flex flex-col">
-      <div className="px-5 pt-5 pb-3">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-md bg-primary/15 border border-primary/20 flex items-center justify-center">
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1.5C5.067 1.5 3.5 3.067 3.5 3.5V6H3C2.448 6 2.448 6.448 2 7V12C2 12.552 2.448 13 3 13H11C11.552 13 12 12.552 12 12V7C12 6.448 11.552 6 11 6H10.5V5C10.5 3.067 8.933 1.5 7 1.5ZM5 5C5 3.895 5.895 3.5 3.067 3.5 5V6H3C2 448 6 2.448 6.448 2 7V12C2 12.552 2.448 13 3 13H11C11.552 13 12 12.552 12 12V7C12 6.448 11.552 6 11 6H10.5V5C10.5 3.067 8.933 1.5 7 1.5Z" fill="#7c6aef" />
+    <div className="w-[400px] min-h-[500px] flex flex-col bg-[var(--void)]">
+      <div className="px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded bg-[var(--surface)] flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h1 className="text-[18px] font-display font-bold text-fg-primary leading-none">Nemo</h1>
+            <div className="flex flex-col">
+              <span className="font-semibold text-[var(--text-primary)] text-sm">Nemo</span>
+              <span className="text-[var(--text-tertiary)] text-[11px]">Vault unlocked</span>
+            </div>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="w-8 h-8 rounded-md flex items-center justify-center text-fg-muted hover:text-fg-secondary hover:bg-glass-surface transition-all"
-              title="Settings"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6.5 1.5L6.2 3.1C5.8 3.3 5.4 3.5.8L3.5 3.2L2.5 8L3.3 6.9C3.3 7.1 3.3 7.3C3.3 7.9 3.3 8.1L2.9 2L3.5 3.6.9C3.3 7.3.3.7 3.3.8.1L12.5 11.8L14.9 8.1C15.7 7 9 15.7 7.9 15.7 7z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-                <circle cx="8" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2" />
-              </svg>
-            </button>
-            <button
+            <button 
               onClick={handleLock}
-              className="w-8 h-8 rounded-md flex items-center justify-center text-fg-muted hover:text-destructive hover:bg-destructive/6 transition-all"
+              className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors rounded-md"
               title="Lock vault"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-                <path d="M5 7V5C5 3.343 6.343 2 8 2C9.657 2 11 3.343 11 5V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                <circle cx="8" cy="10.5" r="1" fill="currentColor" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 1 1 10 0v4" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors rounded-md"
+              title="Settings"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
             </button>
           </div>
         </div>
       </div>
 
-      <SearchBar value={searchQuery} onChange={setSearchQuery} />
-
-      <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setActiveFilter(f.key)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12px] font-medium whitespace-nowrap transition-all ${
-              activeFilter === f.key
-                ? 'bg-fg-primary text-surface shadow-sm'
-                : 'glass text-fg-muted hover:text-fg-secondary'
-            }`}
-          >
-            {f.label}
-            <span className={`text-[10px] font-mono ${
-              activeFilter === f.key ? 'text-surface/60' : 'text-fg-faint'
-            }`}>
-              {String(filterCounts[f.key as keyof typeof filterCounts]).padStart(2, '0')}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-2 pb-4">
-          <EntryList
-            entries={filteredEntries}
-            onEdit={(entry) => { setEditingEntry(entry); setShowAddModal(true) }}
-            onDelete={handleDeleteEntry}
-            searchQuery={searchQuery}
+      <div className="px-4 py-3">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search"
+            className="w-full nemo-input pl-10 pr-4 py-2.5 text-sm"
           />
         </div>
       </div>
 
-      <div className="px-5 pb-5 pt-3">
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="w-full py-3.5 rounded-lg btn-primary text-[14px] flex items-center justify-center gap-2"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          New Credential
-        </button>
+      <div className="px-4 pb-2">
+        <div className="flex gap-1.5">
+          {[
+            { key: 'all', label: 'All', count: entryCount },
+            { key: 'starred', label: 'Starred', count: starredCount },
+          ].map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key as FilterType)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                activeFilter === filter.key
+                  ? 'bg-[var(--gold)] text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)]'
+              }`}
+            >
+              {filter.label} {filter.count}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {notification && (
-        <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg ${
-          notification.type === 'success' ? 'bg-success text-surface' : 'bg-destructive text-surface'
-        }`}>
-          <span className="text-sm font-medium">{notification.message}</span>
+      <div className="flex-1 px-4 overflow-auto">
+        {filteredEntries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-14 h-14 rounded-xl bg-[var(--surface)] flex items-center justify-center mb-3">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">
+              {searchQuery ? 'No matches' : 'No passwords yet'}
+            </h3>
+            <p className="text-[var(--text-tertiary)] text-sm mb-4 max-w-[200px]">
+              {searchQuery 
+                ? 'Try a different search' 
+                : 'Add your first password to secure it here.'}
+            </p>
+            
+            {!searchQuery && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="nemo-button-primary px-5 py-2.5 text-sm"
+              >
+                Add password
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filteredEntries.map((entry: any) => (
+              <div 
+                key={entry.id} 
+                className="flex items-center gap-3 p-2.5 -mx-1 rounded-lg cursor-pointer hover:bg-[var(--surface)] transition-colors group"
+                onClick={() => setViewingEntry(entry)}
+              >
+                <div className="w-9 h-9 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {getFaviconUrl(entry.url) ? (
+                    <img 
+                      src={getFaviconUrl(entry.url)!} 
+                      alt="" 
+                      className="w-5 h-5"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  <span className={`text-sm font-semibold text-[var(--text-secondary)] ${getFaviconUrl(entry.url) ? 'hidden' : ''}`}>
+                    {entry.title.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">{entry.title}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] truncate">
+                    {entry.username || getDomain(entry.url) || 'No username'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {entry.favorite && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--gold)" stroke="none">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  )}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-tertiary)]">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {filteredEntries.length > 0 && (
+        <div className="p-4 border-t border-[var(--border)]">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-full nemo-button-primary py-2.5 text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Add password
+          </button>
         </div>
       )}
 
@@ -464,6 +511,14 @@ export default function App() {
         onClose={() => { setShowAddModal(false); setEditingEntry(null) }}
         onSave={editingEntry ? handleEditEntry : handleAddEntry}
         entry={editingEntry ?? undefined}
+      />
+
+      <EntryDetailModal
+        entry={viewingEntry}
+        isOpen={!!viewingEntry}
+        onClose={() => setViewingEntry(null)}
+        onEdit={handleEditFromDetail}
+        onDelete={handleDeleteFromDetail}
       />
 
       <SettingsModal

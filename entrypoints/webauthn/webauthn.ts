@@ -31,16 +31,38 @@ async function handleAuth() {
       console.log('Registration successful:', result)
       await sendResult({ success: true, data: result, promiseId })
       console.log('Result sent to background')
-      statusEl.textContent = 'Success! Closing...'
-      setTimeout(() => window.close(), 500)
+      
+      const spinnerEl = document.getElementById('spinner')
+      const iconEl = document.getElementById('icon')
+      const hintEl = document.getElementById('hint')
+      
+      if (spinnerEl) spinnerEl.style.display = 'none'
+      if (iconEl) iconEl.style.display = 'block'
+      statusEl.textContent = 'Vault created!'
+      statusEl.className = 'success'
+      if (hintEl) {
+        hintEl.style.display = 'block'
+        hintEl.textContent = 'Click the Nemo extension icon to continue'
+      }
     } else if (action === 'authenticate' && credentialId && salt) {
       statusEl.textContent = 'Verifying identity...'
       console.log('Starting authentication')
       const result = await authenticateWithCredential(credentialId, salt)
       await sendResult({ success: true, data: result, promiseId })
       console.log('Result sent to background')
-      statusEl.textContent = 'Success! Closing...'
-      setTimeout(() => window.close(), 500)
+      
+      const spinnerEl = document.getElementById('spinner')
+      const iconEl = document.getElementById('icon')
+      const hintEl = document.getElementById('hint')
+      
+      if (spinnerEl) spinnerEl.style.display = 'none'
+      if (iconEl) iconEl.style.display = 'block'
+      statusEl.textContent = 'Success!'
+      statusEl.className = 'success'
+      if (hintEl) {
+        hintEl.style.display = 'block'
+        hintEl.textContent = 'Click the Nemo extension icon to continue'
+      }
     } else {
       throw new Error('Invalid request')
     }

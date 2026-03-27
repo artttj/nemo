@@ -1,5 +1,3 @@
-declare(strict_types=1);
-
 import type {
   VaultData,
   VaultVersion,
@@ -100,7 +98,7 @@ export class Vault {
       deviceId: device.id,
       entries: [],
       settings: {
-        autoLockMinutes: 5,
+        autoLockMinutes: 15,
         theme: "dark"
       },
       devices: [device]
@@ -403,7 +401,7 @@ export class VaultBuilder {
       deviceId: this.data.deviceId ?? generateUUID(),
       entries: this.data.entries ?? [],
       settings: this.data.settings ?? {
-        autoLockMinutes: 5,
+        autoLockMinutes: 15,
         theme: "dark"
       },
       devices: this.data.devices ?? []

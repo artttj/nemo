@@ -1,10 +1,16 @@
+import { defineContentScript } from 'wxt/sandbox'
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   allFrames: true,
 
   main() {
+    console.log('[Nemo] Content script loaded')
+    
     let overlayElement: HTMLElement | null = null
+    let nemoButton: HTMLElement | null = null
     let isVisible = false
+    let currentField: HTMLInputElement | null = null
 
     async function queryVaultForUrl(url: string) {
       try {
@@ -27,92 +33,119 @@ export default defineContentScript({
       }
     }
 
-    function createOverlay(entry: {
-      id: string
-      title: string
-      username: string
-      password: string
-      url?: string
-    }) {
+    async function getAllEntries() {
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'GET_ENTRIES_FOR_AUTOFILL' })
+        return response.success ? response.data : []
+      } catch {
+        return []
+      }
+    }
+
+    function createOverlay(entries: any[], onSelect: (entry: any) => void) {
       if (overlayElement) {
         overlayElement.remove()
       }
 
-      overlayElement = document.createElement('div')
-      overlayElement.id = 'nemo-autofill-overlay'
-      overlayElement.innerHTML = `
-        <div style="
-          position: fixed;
-          z-index: 2147483647;
-          background: #1a1a2e;
-          border: 1px solid #4f46e5;
-          border-radius: 8px;
-          padding: 8px;
-          min-width: 200px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        ">
+      if (entries.length === 0) {
+        overlayElement = document.createElement('div')
+        overlayElement.innerHTML = `
           <div style="
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: background 0.15s;
-          " onmouseover="this.style.background='#2d2d44'" onmouseout="this.style.background='transparent'">
-            <div style="
-              width: 32px;
-              height: 32px;
-              background: #4f46e5;
-              border-radius: 6px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              flex-shrink: 0;
-            ">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${entry.title}
-              </div>
-              <div style="font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${entry.username}
-              </div>
-            </div>
+            position: fixed;
+            z-index: 2147483647;
+            background: white;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 200px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+            color: #737373;
+          ">
+            No saved passwords found
           </div>
-        </div>
-      `
+        `
+      } else {
+        overlayElement = document.createElement('div')
+        overlayElement.innerHTML = `
+          <div style="
+            position: fixed;
+            z-index: 2147483647;
+            background: white;
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 12px;
+            min-width: 280px;
+            max-height: 300px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          ">
+            <div style="
+              padding: 12px 16px;
+              background: #FAFAFA;
+              border-bottom: 1px solid rgba(0,0,0,0.08);
+              font-size: 13px;
+              font-weight: 600;
+              color: #1A1A1A;
+            ">
+              Nemo Password Manager
+            </div>
+            ${entries.map(entry => `
+              <div class="nemo-entry-item" style="
+                padding: 12px 16px;
+                cursor: pointer;
+                border-bottom: 1px solid rgba(0,0,0,0.04);
+                transition: background 0.15s;
+              ">
+                <div style="font-size: 14px; font-weight: 500; color: #1A1A1A; margin-bottom: 2px;">
+                  ${escapeHtml(entry.title)}
+                </div>
+                <div style="font-size: 12px; color: #737373;">
+                  ${escapeHtml(entry.username || 'No username')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `
 
-      overlayElement.addEventListener('click', () => {
-        fillPasswordFields(entry.username, entry.password)
-        hideOverlay()
-      })
+        const items = overlayElement.querySelectorAll('.nemo-entry-item')
+        items.forEach((item, index) => {
+          item.addEventListener('mouseenter', () => {
+            (item as HTMLElement).style.background = '#F5F5F5'
+          })
+          item.addEventListener('mouseleave', () => {
+            (item as HTMLElement).style.background = 'transparent'
+          })
+          item.addEventListener('click', () => {
+            onSelect(entries[index])
+            hideOverlay()
+          })
+        })
+      }
 
       document.body.appendChild(overlayElement)
       positionOverlay()
+      isVisible = true
+    }
+
+    function escapeHtml(text: string): string {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
     }
 
     function positionOverlay() {
-      if (!overlayElement) return
+      if (!overlayElement || !currentField) return
 
-      const passwordField = document.querySelector('input[type="password"]') as HTMLInputElement
-      if (!passwordField) return
-
-      const rect = passwordField.getBoundingClientRect()
+      const rect = currentField.getBoundingClientRect()
       const overlay = overlayElement.querySelector('div') as HTMLElement
 
-      if (rect.bottom + overlay.offsetHeight > window.innerHeight) {
-        overlayElement.style.top = `${window.scrollY + rect.top - overlay.offsetHeight - 8}px`
-      } else {
-        overlayElement.style.top = `${window.scrollY + rect.bottom + 8}px`
-      }
+      const top = rect.bottom + 8 + window.scrollY
+      const left = rect.left + window.scrollX
 
-      overlayElement.style.left = `${window.scrollX + Math.max(8, Math.min(rect.left, window.innerWidth - overlayElement.offsetWidth - 8))}px`
+      overlayElement.style.top = `${top}px`
+      overlayElement.style.left = `${left}px`
     }
 
     function hideOverlay() {
@@ -125,18 +158,36 @@ export default defineContentScript({
 
     function fillPasswordFields(username: string, password: string) {
       const passwordInputs = document.querySelectorAll('input[type="password"]')
-      const usernameInputs = document.querySelectorAll(
-        'input[type="email"], input[type="text"][name*="user"], input[type="text"][name*="email"], input[type="text"][id*="user"], input[type="text"][id*="email"], input[type="text"][autocomplete*="user"], input[type="text"][autocomplete*="email"]'
-      )
+      const textInputs = document.querySelectorAll('input[type="text"], input[type="email"]')
 
-      usernameInputs.forEach((input) => {
-        if (input instanceof HTMLInputElement && !input.value) {
-          input.value = username
-          input.dispatchEvent(new Event('input', { bubbles: true }))
-          input.dispatchEvent(new Event('change', { bubbles: true }))
+      // Find username field (usually before password field)
+      textInputs.forEach((input) => {
+        if (input instanceof HTMLInputElement) {
+          const autocomplete = input.getAttribute('autocomplete') || ''
+          const name = input.name.toLowerCase()
+          const id = input.id.toLowerCase()
+          const placeholder = (input.placeholder || '').toLowerCase()
+
+          if (
+            autocomplete.includes('username') ||
+            autocomplete.includes('email') ||
+            name.includes('user') ||
+            name.includes('email') ||
+            name.includes('login') ||
+            id.includes('user') ||
+            id.includes('email') ||
+            id.includes('login') ||
+            placeholder.includes('username') ||
+            placeholder.includes('email')
+          ) {
+            input.value = username
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            input.dispatchEvent(new Event('change', { bubbles: true }))
+          }
         }
       })
 
+      // Fill all password fields
       passwordInputs.forEach((input) => {
         if (input instanceof HTMLInputElement) {
           input.value = password
@@ -146,107 +197,163 @@ export default defineContentScript({
       })
     }
 
-    function setupPasswordFieldDetection() {
-      const checkForPasswordFields = () => {
-        const passwordFields = document.querySelectorAll('input[type="password"]')
+    function createNemoButton(field: HTMLInputElement) {
+      if (!field.parentElement || field.dataset.nemoButton) return
 
-        passwordFields.forEach((field) => {
-          if (!(field instanceof HTMLInputElement)) return
+      field.dataset.nemoButton = 'true'
 
-          if (!field.dataset.nemoDetected) {
-            field.dataset.nemoDetected = 'true'
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = `
+        position: relative;
+        display: inline-block;
+        width: 100%;
+      `
 
-            const nemoButton = document.createElement('button')
-            nemoButton.type = 'button'
-            nemoButton.className = 'nemo-autofill-btn'
-            nemoButton.innerHTML = `
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            `
-            nemoButton.style.cssText = `
-              position: absolute;
-              right: 8px;
-              top: 50%;
-              transform: translateY(-50%);
-              width: 24px;
-              height: 24px;
-              background: #4f46e5;
-              border: none;
-              border-radius: 4px;
-              cursor: pointer;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              padding: 0;
-              z-index: 1000;
-            `
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      `
+      button.style.cssText = `
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 28px;
+        height: 28px;
+        background: #C98700;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        padding: 0;
+        z-index: 1000;
+        transition: all 0.2s;
+      `
 
-            nemoButton.addEventListener('click', async (e) => {
-              e.preventDefault()
-              e.stopPropagation()
-
-              const state = await getVaultState()
-              if (!state?.isUnlocked) {
-                chrome.runtime.sendMessage({ type: 'OPEN_POPUP' })
-                return
-              }
-
-              const entry = await queryVaultForUrl(window.location.href)
-              if (entry) {
-                fillPasswordFields(entry.username, entry.password)
-              }
-            })
-
-            const wrapper = document.createElement('div')
-            wrapper.style.cssText = 'position: relative; display: inline-block; width: 100%;'
-
-            field.parentNode?.insertBefore(wrapper, field)
-            wrapper.appendChild(field.cloneNode(true))
-            wrapper.appendChild(nemoButton)
-            field.parentNode?.replaceChild(wrapper, field)
-          }
-        })
-      }
-
-      setTimeout(() => checkForPasswordFields(), 1000)
-
-      document.addEventListener('focusin', async (e) => {
-        if ((e.target as HTMLInputElement)?.type === 'password') {
-          const state = await getVaultState()
-          if (state?.isUnlocked) {
-            const entry = await queryVaultForUrl(window.location.href)
-            if (entry && !isVisible) {
-              createOverlay(entry)
-            }
-          }
-        }
+      button.addEventListener('mouseenter', () => {
+        button.style.background = '#D99600'
+        button.style.transform = 'translateY(-50%) scale(1.05)'
       })
 
-      document.addEventListener('focusout', (e) => {
-        if ((e.target as HTMLInputElement)?.type === 'password') {
-          setTimeout(() => {
-            if (!document.querySelector('#nemo-autofill-overlay:hover')) {
-              hideOverlay()
-            }
-          }, 150)
-        }
+      button.addEventListener('mouseleave', () => {
+        button.style.background = '#C98700'
+        button.style.transform = 'translateY(-50%) scale(1)'
       })
 
-      document.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement
-        if (!target.closest('#nemo-autofill-overlay') && !target.closest('.nemo-autofill-btn')) {
+      button.addEventListener('click', async (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        currentField = field
+
+        const state = await getVaultState()
+        if (!state?.isUnlocked) {
+          chrome.runtime.sendMessage({ type: 'OPEN_POPUP' })
+          return
+        }
+
+        if (isVisible) {
           hideOverlay()
+          return
+        }
+
+        const entries = await getAllEntries()
+        createOverlay(entries, (entry) => {
+          fillPasswordFields(entry.username, entry.password)
+        })
+      })
+
+      const parent = field.parentElement
+      parent.insertBefore(wrapper, field)
+      wrapper.appendChild(field.cloneNode(true))
+      wrapper.appendChild(button)
+      parent.replaceChild(wrapper, field)
+
+      // Re-reference the field in wrapper
+      const newField = wrapper.querySelector('input') as HTMLInputElement
+      newField.addEventListener('focus', () => {
+        currentField = newField
+      })
+    }
+
+    function detectAndAttachButtons() {
+      // Find password fields
+      const passwordFields = document.querySelectorAll('input[type="password"]:not([data-nemo-button])')
+      
+      passwordFields.forEach((field) => {
+        if (field instanceof HTMLInputElement) {
+          createNemoButton(field)
+        }
+      })
+
+      // Find username fields near password fields
+      const allFields = document.querySelectorAll('input[type="text"], input[type="email"]')
+      allFields.forEach((field) => {
+        if (field instanceof HTMLInputElement && !field.dataset.nemoButton) {
+          const autocomplete = field.getAttribute('autocomplete') || ''
+          const name = field.name.toLowerCase()
+          const id = field.id.toLowerCase()
+
+          if (
+            autocomplete.includes('username') ||
+            autocomplete.includes('email') ||
+            name.includes('user') ||
+            name.includes('email') ||
+            name.includes('login') ||
+            id.includes('user') ||
+            id.includes('email') ||
+            id.includes('login')
+          ) {
+            createNemoButton(field)
+          }
         }
       })
     }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', setupPasswordFieldDetection)
-    } else {
-      setupPasswordFieldDetection()
-    }
+    // Initial detection
+    setTimeout(detectAndAttachButtons, 1000)
+
+    // Watch for dynamically added fields
+    const observer = new MutationObserver(() => {
+      detectAndAttachButtons()
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    // Close overlay on click outside
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('#nemo-autofill-overlay')) {
+        hideOverlay()
+      }
+    })
+
+    // Handle focus events for inline suggestions
+    document.addEventListener('focusin', async (e) => {
+      const target = e.target as HTMLInputElement
+      if (target.type === 'password' || target.type === 'text' || target.type === 'email') {
+        currentField = target
+        
+        // Check if vault is unlocked and we have a match for this URL
+        const state = await getVaultState()
+        if (state?.isUnlocked && !isVisible) {
+          const entry = await queryVaultForUrl(window.location.href)
+          if (entry) {
+            // Show subtle indicator that credentials are available
+            showInlineIndicator(target)
+          }
+        }
+      }
+    })
   }
 })
+
+function showInlineIndicator(field: HTMLInputElement) {
+  // Implementation for inline indicator
+}

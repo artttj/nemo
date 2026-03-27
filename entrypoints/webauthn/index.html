@@ -17,6 +17,7 @@
     .container {
       text-align: center;
       padding: 2rem;
+      max-width: 400px;
     }
     .spinner {
       width: 40px;
@@ -27,6 +28,9 @@
       animation: spin 1s linear infinite;
       margin: 0 auto 1rem;
     }
+    .spinner.hidden {
+      display: none;
+    }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -34,13 +38,39 @@
       color: #ef4444;
       margin-top: 1rem;
     }
+    .success {
+      color: #22c55e;
+      margin-top: 0.5rem;
+    }
+    .hint {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1rem;
+    }
+    .icon svg {
+      width: 100%;
+      height: 100%;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="spinner"></div>
+    <div id="spinner" class="spinner"></div>
+    <div id="icon" class="icon" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </div>
     <p id="status">Authenticating...</p>
     <p id="error" class="error" style="display:none;"></p>
+    <p id="hint" class="hint" style="display:none;"></p>
   </div>
   <script type="module" src="./webauthn.ts"></script>
 </body>

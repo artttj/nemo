@@ -1,182 +1,257 @@
 import { useState } from 'react'
 import type { VaultEntry } from '~/utils/types'
-import { getFaviconUrl } from '~/utils/vault'
 
-const ICON_COLORS = [
-  'from-violet-500/20 to-violet-600/10 text-violet-400',
-  'from-blue-500/20 to-blue-600/10 text-blue-400',
-  'from-emerald-500/20 to-emerald-600/10 text-emerald-400',
-  'from-rose-500/20 to-rose-600/10 text-rose-400',
-  'from-amber-500/20 to-amber-600/10 text-amber-400',
-  'from-cyan-500/20 to-cyan-600/10 text-cyan-400',
-  'from-pink-500/20 to-pink-600/10 text-pink-400',
-  'from-orange-500/20 to-orange-600/10 text-orange-400',
-]
-
-function getColorForEntry(title: string): string {
+function getColorForEntry(title: string): { bg: string; text: string } {
+  const colors = [
+    { bg: 'rgba(184, 115, 51, 0.12)', text: '#b87333' },
+    { bg: 'rgba(100, 116, 139, 0.12)', text: '#64748b' },
+    { bg: 'rgba(201, 162, 39, 0.12)', text: '#c9a227' },
+    { bg: 'rgba(139, 92, 246, 0.12)', text: '#8b5cf6' },
+    { bg: 'rgba(34, 197, 94, 0.12)', text: '#22c55e' },
+  ]
   let hash = 0
   for (let i = 0; i < title.length; i++) {
     hash = title.charCodeAt(i) + ((hash << 5) - hash)
   }
-  return ICON_COLORS[Math.abs(hash) % ICON_COLORS.length]
+  return colors[Math.abs(hash) % colors.length]
+}
+
+function getDomain(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
 }
 
 export function EntryCard({
   entry,
   onEdit,
   onDelete,
-  onCopyUsername,
-  onCopyPassword
+  index = 0,
 }: {
   entry: VaultEntry
   onEdit?: () => void
   onDelete?: () => void
-  onCopyUsername?: () => void
-  onCopyPassword?: () => void
+  index?: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [isHovered, setIsHovered] = useState(false)
 
-  const favicon = entry.url ? getFaviconUrl(entry.url) : null
   const initial = entry.title.charAt(0).toUpperCase()
-  const colorClass = getColorForEntry(entry.title)
+  const color = getColorForEntry(entry.title)
+  const domain = getDomain(entry.url)
 
   const handleCopy = async (text: string, type: 'username' | 'password') => {
     await navigator.clipboard.writeText(text)
     setCopied(type)
-    setTimeout(() => setCopied(null), 1500)
+    setTimeout(() => setCopied(null), 2000)
   }
 
   return (
-    <div className="relative">
-      <button
+    <div 
+      className="relative animate-entry-reveal"
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      {/* Main card */}
+      <div
         onClick={() => setExpanded(!expanded)}
-        className={`w-full text-left card card-interactive ${expanded ? 'rounded-b-none border-b-transparent' : ''}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative cursor-pointer transition-all duration-300"
+        style={{
+          background: expanded ? 'var(--surface-card)' : 'transparent',
+          border: `1px solid ${isHovered || expanded ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
+          boxShadow: isHovered && !expanded ? '0 4px 20px rgba(0,0,0,0.2)' : 'none'
+        }}
       >
-        <div className="flex items-center gap-3.5">
-          <div className={`flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center overflow-hidden`}>
-            {favicon ? (
-              <img src={favicon} alt="" className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-            ) : (
-              <span className="text-[14px] font-semibold">{initial}</span>
-            )}
+        {/* Card header */}
+        <div className="flex items-center gap-4 px-5 py-4">
+          {/* Avatar */}
+          <div 
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center font-display text-[18px] transition-transform duration-300"
+            style={{ 
+              background: color.bg,
+              color: color.text,
+              borderRadius: '50%',
+              transform: isHovered ? 'scale(1.05)' : 'scale(1)'
+            }}
+          >
+            {initial}
           </div>
 
+          {/* Info */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-[14px] font-medium text-fg-primary truncate leading-tight">{entry.title}</h3>
-            <p className="text-[12px] text-fg-muted truncate mt-0.5">
-              {entry.username || entry.notes?.substring(0, 40) || (entry.password ? 'Secret' : 'Note')}
-            </p>
-          </div>
+            <h3 
+              className="font-display text-[15px] font-medium truncate tracking-tight transition-colors"
+              style={{ color: isHovered ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+            >
+              {entry.title}
+            </h3>            
+            <p 
+              className="font-body text-[13px] truncate mt-0.5 transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {domain || entry.username || 'Credential'}
+            </p>          </div>
 
+          {/* Star indicator */}
           {entry.favorite && (
-            <span className="w-2 h-2 rounded-full bg-accent flex-shrink-0" />
+            <div 
+              className="flex-shrink-0"
+              style={{ color: 'var(--gold)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            </div>
           )}
 
-          <svg
-            className={`w-4 h-4 text-fg-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
-            viewBox="0 0 16 16"
-            fill="none"
+          {/* Expand chevron */}
+          <div
+            className="flex-shrink-0 transition-transform duration-300"
+            style={{ 
+              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              color: 'var(--text-muted)'
+            }}
           >
-            <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
         </div>
-      </button>
 
-      {expanded && (
-        <div className="p-4 pt-2 bg-glass-surface border border-t-0 border-glass-border rounded-b-[10px] animate-fade-in">
-          <div className="space-y-2.5">
-            {entry.url && (
-              <p className="text-[11px] font-mono text-fg-muted truncate px-1">
-                {(() => { try { return new URL(entry.url).hostname.replace(/^www\./, '') } catch { return entry.url } })()}
-              </p>
-            )}
+        {/* Expanded content */}
+        {expanded && (
+          <div 
+            className="px-5 pb-5 animate-expand"
+            style={{ borderTop: '1px solid var(--border-subtle)' }}
+          >
+            <div className="pt-4 space-y-4">
+              {/* Domain / URL */}
+              {domain && (
+                <div className="flex items-center gap-2">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  <p className="font-mono text-[11px] tracking-wide truncate" style={{ color: 'var(--text-faint)' }}>
+                    {domain}
+                  </p>                </div>
+              )}
 
-            {entry.username && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-base/40">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-fg-muted mb-0.5">Username</p>
-                  <code className="text-[13px] text-fg-primary font-mono truncate block">{entry.username}</code>
-                </div>
-                <button
-                  onClick={() => onCopyUsername?.() || handleCopy(entry.username!, 'username')}
-                  className="ml-3 px-3 py-1.5 text-[11px] font-medium text-fg-muted hover:text-fg-primary rounded-md hover:bg-glass-shine transition-all"
+              {/* Username field */}
+              {entry.username && (
+                <div 
+                  className="flex items-center justify-between p-3"
+                  style={{ background: 'var(--surface-void-light)' }}
                 >
-                  Copy
-                </button>
-              </div>
-            )}
-
-            {entry.password && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-base/40">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-fg-muted mb-0.5">Password</p>
-                  <code className="text-[13px] text-fg-primary font-mono">
-                    {showPassword ? entry.password : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
-                  </code>
-                </div>
-                <div className="flex items-center gap-1 ml-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
+                      Username
+                    </p>
+                    <p className="font-body text-[14px] truncate" style={{ color: 'var(--text-primary)' }}>
+                      {entry.username}
+                    </p>                  </div>
                   <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="px-2.5 py-1.5 text-[11px] font-medium text-fg-muted hover:text-fg-secondary rounded-md hover:bg-glass-shine transition-all"
+                    onClick={(e) => { e.stopPropagation(); handleCopy(entry.username!, 'username') }}
+                    className="flex-shrink-0 ml-4 px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
+                    style={{ color: copied === 'username' ? 'var(--success)' : 'var(--text-muted)' }}
                   >
-                    {showPassword ? 'Hide' : 'Show'}
-                  </button>
-                  <button
-                    onClick={() => onCopyPassword?.() || handleCopy(entry.password!, 'password')}
-                    className="px-2.5 py-1.5 text-[11px] font-medium text-fg-muted hover:text-fg-primary rounded-md hover:bg-glass-shine transition-all"
-                  >
-                    Copy
-                  </button>
+                    {copied === 'username' ? 'Copied' : 'Copy'}
+                  </button>                </div>
+              )}
+
+              {/* Password field */}
+              {entry.password && (
+                <div 
+                  className="flex items-center justify-between p-3"
+                  style={{ background: 'var(--surface-void-light)' }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
+                      Password
+                    </p>
+                    <p 
+                      className="font-mono text-[13px] tracking-wide"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
+                      {showPassword ? entry.password : '••••••••••••••'}
+                    </p>                  </div>
+                  <div className="flex-shrink-0 ml-4 flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowPassword(!showPassword) }}
+                      className="px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCopy(entry.password!, 'password') }}
+                      className="px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
+                      style={{ color: copied === 'password' ? 'var(--success)' : 'var(--text-muted)' }}
+                    >
+                      {copied === 'password' ? 'Copied' : 'Copy'}
+                    </button>                  </div>                </div>
+              )}
+
+              {/* Notes */}
+              {entry.notes && (
+                <div 
+                  className="p-3"
+                  style={{ background: 'var(--surface-void-light)' }}
+                >
+                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
+                    Notes
+                  </p>
+                  <p className="font-body text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-secondary)' }}>
+                    {entry.notes}
+                  </p>                </div>
+              )}
+
+              {/* Tags */}
+              {entry.tags && entry.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {entry.tags.map((tag) => (
+                    <span 
+                      key={tag}
+                      className="font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1"
+                      style={{ 
+                        background: 'var(--bronze-glow)',
+                        color: 'var(--bronze)'
+                      }}
+                    >
+                      {tag}
+                    </span>                  ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {entry.notes && (
-              <div className="p-3 rounded-lg bg-base/40">
-                <p className="text-[10px] text-fg-muted mb-1">Notes</p>
-                <p className="text-[13px] text-fg-secondary leading-relaxed whitespace-pre-wrap break-words">{entry.notes}</p>
-              </div>
-            )}
-
-            {entry.tags && entry.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 px-1 pt-1">
-                {entry.tags.map((tag) => (
-                  <span key={tag} className="text-[10px] font-mono px-2.5 py-1 rounded-md bg-accent-muted text-accent-hover border border-accent/10">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={onEdit}
-                className="flex-1 py-2.5 text-[12px] font-medium text-fg-secondary hover:text-fg-primary rounded-xl transition-all border border-glass-border hover:border-glass-border-hover hover:bg-glass-surface"
-              >
-                Edit
-              </button>
-              <button
-                onClick={onDelete}
-                className="flex-1 py-2.5 text-[12px] font-medium text-fg-muted hover:text-danger rounded-xl transition-all border border-glass-border hover:border-danger/20 hover:bg-danger/5"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {copied && (
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 animate-slide-up z-10">
-          <div className="bg-fg-primary text-base-surface px-4 py-2 text-[11px] font-medium rounded-full shadow-lg shadow-black/40">
-            {copied === 'username' ? 'Username' : 'Password'} copied
-          </div>
-        </div>
-      )}
-    </div>
-  )
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit?.() }}
+                  className="flex-1 py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase transition-all"
+                  style={{ 
+                    background: 'var(--surface-elevated)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  Edit
+                </button>                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete?.() }}
+                  className="flex-1 py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase transition-all"
+                  style={{ 
+                    background: 'transparent',
+                    color: 'var(--danger)',
+                    border: '1px solid var(--danger-dim)'
+                  }}
+                >
+                  Delete
+                </button>              </div>            </div>          </div>        )}
+      </div>    </div>  )
 }
 
 export function EntryList({
@@ -192,33 +267,37 @@ export function EntryList({
 }) {
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center mb-4">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-fg-muted">
-            <path d="M12 2C8.13 2 5 5.13 5 9V11H4C2.9 11 2 11.9 2 13V21C2 22.1 2.9 23 4 23H20C21.1 23 22 22.1 22 21V13C22 11.9 21.1 11 20 11H19V9C19 5.13 15.87 2 12 2ZM8 9C8 6.79 9.79 5 12 5C14.21 5 16 6.79 16 9V11H8V9Z" fill="currentColor" opacity="0.3" />
-          </svg>
-        </div>
-        <p className="text-[15px] text-fg-secondary font-medium">
-          {searchQuery ? 'No matching entries' : 'Your vault is empty'}
-        </p>
-        {!searchQuery && (
-          <p className="text-[13px] text-fg-muted mt-1.5">Add your first credential</p>
-        )}
-      </div>
-    )
+      <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade">
+        <div 
+          className="w-16 h-16 flex items-center justify-center mb-6"
+          style={{ 
+            background: 'var(--surface-void-light)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '50%'
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M7 11V7C7 4.24 9.24 2 12 2C14.76 2 17 4.24 17 7V11" />
+          </svg>        </div>
+        <p className="font-display text-[18px] font-medium" style={{ color: 'var(--text-primary)' }}>
+          {searchQuery ? 'No results found' : 'Your vault is empty'}
+        </p>        <p className="font-body text-[14px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
+          {searchQuery 
+            ? 'Try adjusting your search terms' 
+            : 'Add your first password entry to begin'}
+        </p>      </div>    )
   }
 
   return (
     <div className="space-y-2">
       {entries.map((entry, index) => (
-        <div key={entry.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.03}s` }}>
-          <EntryCard
-            entry={entry}
-            onEdit={onEdit ? () => onEdit(entry) : undefined}
-            onDelete={onDelete ? () => onDelete(entry.id) : undefined}
-          />
-        </div>
-      ))}
-    </div>
-  )
+        <EntryCard
+          key={entry.id}
+          entry={entry}
+          index={index}
+          onEdit={onEdit ? () => onEdit(entry) : undefined}
+          onDelete={onDelete ? () => onDelete(entry.id) : undefined}
+        />      ))}
+    </div>  )
 }

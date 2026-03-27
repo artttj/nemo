@@ -1,9 +1,6 @@
-declare(strict_types=1);
-
-import type { EncryptedRecoveryKey, RecoveryData } from "./types";
-import { encrypt, decrypt, generateVaultKey, wrapVaultKey, unwrapVaultKey } from "../utils/crypto";
-import { generateRandomBytes, bufferToBase64, base64ToBuffer } from "../utils/crypto";
-import { bufferToHex } from "../utils/crypto";
+import type { RecoveryData } from "./types"
+import { wrapVaultKey, unwrapVaultKey } from "../utils/crypto"
+import { generateRandomBytes, bufferToBase64 } from "../utils/crypto"
 
 const BIP39_WORDLIST = [
   "abandon", "ability", "able", "about", "above", "absent", "absorb", "abstract", "absurd", "abuse",
@@ -212,128 +209,97 @@ const BIP39_WORDLIST = [
   "wish", "witness", "wolf", "woman", "wonder", "wood", "wool", "word", "work", "world",
   "worry", "worth", "wrap", "wreck", "wrestle", "wrist", "write", "wrong", "yard", "year",
   "yellow", "you", "young", "youth", "zebra", "zero", "zone", "zoo"
-];
+]
 
-const WORD_BITS = 11;
-const CHECKSUM_BITS = 4;
-const ENTROPY_BYTES = 16;
-const RECOVERY_PHRASE_WORDS = 12;
+const RECOVERY_PHRASE_WORDS = 12
 
-function validateRecoveryPhrase(phrase: string): boolean {
-  const words = phrase.trim().split(/\s+/);
-  if (words.length !== RECOVERY_PHRASE_WORDS) return false;
+function validatePhrase(phrase: string): boolean {
+  const words = phrase.trim().toLowerCase().split(/\s+/)
+  if (words.length !== RECOVERY_PHRASE_WORDS) return false
+  return words.every(word => BIP39_WORDLIST.includes(word))
+}
 
+function wordsToEntropy(phrase: string): Uint8Array {
+  const words = phrase.trim().toLowerCase().split(/\s+/)
+  const bits: number[] = []
+  
   for (const word of words) {
-    const index = BIP39_WORDLIST.indexOf(word);
-    if (index === -1) return false;
+    const index = BIP39_WORDLIST.indexOf(word)
+    for (let i = 10; i >= 0; i--) {
+      bits.push((index >> i) & 1)
+    }
   }
-
-  return true;
+  
+  const entropy = new Uint8Array(16)
+  for (let i = 0; i < 128; i++) {
+    if (bits[i]) {
+      entropy[Math.floor(i / 8)] |= 1 << (7 - (i % 8))
+    }
+  }
+  
+  return entropy
 }
 
-function wordsToIndices(phrase: string): number[] {
-  return phrase.trim().split(/\s+/).map(word => BIP39_WORDLIST.indexOf(word));
-}
-
-function indicesToWords(indices: number[]): string {
-  return indices.map(index => BIP39_WORDLIST[index]).join(" ");
-}
-
-function entropyToIndices(entropy: Uint8Array): number[] {
-  const bits: number[] = [];
-
+export function generateRecoveryPhrase(): string {
+  const entropy = new Uint8Array(16)
+  crypto.getRandomValues(entropy)
+  
+  const bits: number[] = []
   for (const byte of entropy) {
     for (let i = 7; i >= 0; i--) {
-      bits.push((byte >> i) & 1);
+      bits.push((byte >> i) & 1)
     }
   }
-
-  const hash = await crypto.subtle.digest("SHA-256", entropy);
-  const hashBytes = new Uint8Array(hash);
-  for (let i = 7; i >= 4; i--) {
-    for (let j = 7; j >= 0; j--) {
-      bits.push((hashBytes[i] >> j) & 1);
+  
+  const words: string[] = []
+  for (let i = 0; i < 12; i++) {
+    let index = 0
+    for (let j = 0; j < 11; j++) {
+      index = (index << 1) | bits[i * 11 + j]
     }
+    words.push(BIP39_WORDLIST[index])
   }
-
-  const indices: number[] = [];
-  for (let i = 0; i < RECOVERY_PHRASE_WORDS; i++) {
-    let value = 0;
-    for (let j = 0; j < WORD_BITS; j++) {
-      value = (value << 1) | bits[i * WORD_BITS + j];
-    }
-    indices.push(value);
-  }
-
-  return indices;
+  
+  return words.join(' ')
 }
 
-function indicesToEntropy(indices: number[]): Uint8Array {
-  const bits: number[] = [];
-
-  for (const index of indices) {
-    for (let i = WORD_BITS - 1; i >= 0; i--) {
-      bits.push((index >> i) & 1);
-    }
+export async function deriveKeyFromPhrase(phrase: string): Promise<CryptoKey> {
+  if (!validatePhrase(phrase)) {
+    throw new Error('Invalid recovery phrase')
   }
-
-  const entropyBytes = new Uint8Array(ENTROPY_BYTES);
-  for (let i = 0; i < entropyBytes.length * 8; i++) {
-    if (bits[i]) {
-      entropyBytes[Math.floor(i / 8)] |= 1 << (7 - (i % 8));
-    }
-  }
-
-  return entropyBytes;
-}
-
-function recoveryPhraseToKey(phrase: string): CryptoKey {
-  if (!validateRecoveryPhrase(phrase)) {
-    throw new Error("Invalid recovery phrase");
-  }
-
-  const indices = wordsToIndices(phrase);
-  const entropy = indicesToEntropy(indices);
-
-  return crypto.subtle.importKey(
-    "raw",
-    entropy,
-    { name: "AES-GCM", length: 256 },
+  
+  const entropy = wordsToEntropy(phrase)
+  const entropyBuffer = entropy.buffer as ArrayBuffer
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    entropyBuffer,
+    'HKDF',
     false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-export async function generateRecoveryPhrase(): Promise<string> {
-  const entropy = generateRandomBytes(ENTROPY_BYTES);
-  const indices = entropyToIndices(entropy);
-  return indicesToWords(indices);
-}
-
-export async function generateVaultKeyFromRecoveryPhrase(phrase: string): Promise<CryptoKey> {
-  const key = await recoveryPhraseToKey(phrase);
-
+    ['deriveKey']
+  )
+  
   return crypto.subtle.deriveKey(
     {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: new Uint8Array(16),
-      info: new TextEncoder().encode("nemo-recovery-key")
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new TextEncoder().encode('nemo-vault-recovery'),
+      info: new TextEncoder().encode('encryption-key')
     },
-    key,
-    { name: "AES-GCM", length: 256 },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
     false,
-    ["encrypt", "decrypt"]
-  );
+    ['encrypt', 'decrypt']
+  )
 }
 
 export async function createRecoveryBackup(vaultKey: CryptoKey, vaultId: string): Promise<{ phrase: string; encryptedData: RecoveryData }> {
-  const phrase = await generateRecoveryPhrase();
-  const recoveryKey = await generateVaultKeyFromRecoveryPhrase(phrase);
-
-  const { wrappedKey, iv } = await wrapVaultKey(vaultKey, recoveryKey);
-  const salt = bufferToBase64(generateRandomBytes(16));
-
+  const phrase = generateRecoveryPhrase()
+  const recoveryKey = await deriveKeyFromPhrase(phrase)
+  
+  const { wrappedKey, iv } = await wrapVaultKey(vaultKey, recoveryKey)
+  const salt = bufferToBase64(generateRandomBytes(16))
+  
   const encryptedData: RecoveryData = {
     version: 1,
     vaultId,
@@ -341,55 +307,21 @@ export async function createRecoveryBackup(vaultKey: CryptoKey, vaultId: string)
     salt,
     iv,
     createdAt: Date.now()
-  };
-
-  return { phrase, encryptedData };
+  }
+  
+  return { phrase, encryptedData }
 }
 
 export async function recoverVaultKey(phrase: string, encryptedData: RecoveryData): Promise<CryptoKey> {
-  const recoveryKey = await generateVaultKeyFromRecoveryPhrase(phrase);
-
+  const recoveryKey = await deriveKeyFromPhrase(phrase)
+  
   return await unwrapVaultKey(
     encryptedData.wrappedVaultKey,
     encryptedData.iv,
     recoveryKey
-  );
+  )
 }
 
-export async function validateRecoveryPhraseChecksum(phrase: string): Promise<boolean> {
-  if (!validateRecoveryPhrase(phrase)) return false;
-
-  const indices = wordsToIndices(phrase);
-  const entropy = indicesToEntropy(indices);
-
-  const hash = await crypto.subtle.digest("SHA-256", entropy);
-  const hashBytes = new Uint8Array(hash);
-
-  const bits: number[] = [];
-  for (const byte of entropy) {
-    for (let i = 7; i >= 0; i--) {
-      bits.push((byte >> i) & 1);
-    }
-  }
-
-  let checksum = 0;
-  for (let i = 0; i < CHECKSUM_BITS; i++) {
-    checksum = (checksum << 1) | ((hashBytes[0] >> (7 - i)) & 1);
-  }
-
-  const computedChecksum = indices[indices.length - 1] & ((1 << CHECKSUM_BITS) - 1);
-
-  return checksum === computedChecksum;
-}
-
-export function wordlistSize(): number {
-  return BIP39_WORDLIST.length;
-}
-
-export function phraseWordCount(): number {
-  return RECOVERY_PHRASE_WORDS;
-}
-
-export function entropyStrength(): string {
-  return `${ENTROPY_BYTES * 8}-bit`;
+export function isValidPhrase(phrase: string): boolean {
+  return validatePhrase(phrase)
 }

@@ -1,5 +1,3 @@
-declare(strict_types=1);
-
 export type VaultVersion = 1;
 
 export interface VaultDevice {
@@ -90,4 +88,14 @@ export interface KeyBackup {
 export interface Migration<T = unknown, U = unknown> {
   version: number
   migrate(data: T): U
+}
+
+export interface PinData {
+  version: 1
+  wrappedVaultKey: string
+  iv: string
+  salt: string
+  createdAt: number
+  attemptsRemaining: number
+  lockedUntil: number | null
 }

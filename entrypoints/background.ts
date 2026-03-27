@@ -3,7 +3,10 @@ import type { Message, MessageResponse } from '../utils/types'
 import {
   getVaultState,
   createVault,
+  createVaultFromRecovery,
   unlockVault,
+  unlockVaultFromRecovery,
+  unlockVaultWithPin,
   lockVault,
   handleAddEntry,
   handleUpdateEntry,
@@ -13,31 +16,32 @@ import {
   handleExportVault,
   handleImportVault,
   handleUpdateSettings,
-  handleClipboardCopy
+  handleClipboardCopy,
+  checkVaultExists,
+  hasPinConfigured,
+  getVaultList,
+  switchVault,
+  createNewVaultInRegistry,
+  renameVault,
+  deleteVault
 } from '../utils/vault-ops'
 import { handleWebAuthnResult } from '../utils/webauthn-handler'
+import { setActiveVault as setVaultActive } from '../utils/vault'
 
 export default defineBackground({
   main() {
-    console.log('Background script initialized')
-    
     chrome.runtime.onMessage.addListener(
       (message: Message, sender, sendResponse: (response: MessageResponse) => void) => {
-        console.log('Received message:', message.type, 'from:', sender?.tab?.id || 'popup', 'tab url:', sender?.tab?.url || 'no tab')
         handleMessage(message, sender)
           .then((response) => {
-            console.log('Responding with:', response)
             sendResponse(response)
           })
           .catch((error) => {
-            console.error('Error handling message:', error)
             sendResponse({ success: false, error: error.message })
           })
         return true
       }
     )
-    
-    console.log('Message listener registered')
   }
 })
 
@@ -46,14 +50,51 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
     case 'GET_VAULT_STATE':
       return { success: true, data: await getVaultState() }
 
+    case 'CHECK_VAULT_EXISTS':
+      return { success: true, data: await checkVaultExists() }
+
+    case 'HAS_PIN_SETUP':
+      return { success: true, data: await hasPinConfigured() }
+
+    case 'GET_VAULT_REGISTRY':
+      return getVaultList()
+
+    case 'SET_ACTIVE_VAULT':
+      const vaultId = message.payload as string
+      const setActiveResult = await setVaultActive(vaultId)
+      if (setActiveResult) {
+        return switchVault(vaultId)
+      }
+      return { success: false, error: 'Vault not found' }
+
     case 'CREATE_VAULT':
       return createVault()
 
+    case 'CREATE_NEW_VAULT':
+      const createPayload = message.payload as { name: string }
+      return createNewVaultInRegistry(createPayload.name)
+
+    case 'CREATE_VAULT_FROM_RECOVERY':
+      return createVaultFromRecovery(message.payload as string)
+
     case 'UNLOCK_VAULT':
       return unlockVault()
+    
+    case 'UNLOCK_VAULT_FROM_RECOVERY':
+      return unlockVaultFromRecovery(message.payload as string)
+
+    case 'UNLOCK_VAULT_WITH_PIN':
+      return unlockVaultWithPin(message.payload as string)
 
     case 'LOCK_VAULT':
       return lockVault()
+
+    case 'DELETE_VAULT':
+      return deleteVault(message.payload as string)
+
+    case 'RENAME_VAULT':
+      const renamePayload = message.payload as { vaultId: string; name: string }
+      return renameVault(renamePayload.vaultId, renamePayload.name)
 
     case 'ADD_ENTRY':
       return handleAddEntry(message.payload as Parameters<typeof handleAddEntry>[0])
@@ -69,6 +110,14 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
     case 'GET_ENTRIES': {
       const state = await getVaultState()
       return { success: true, data: state.vault?.entries ?? [] }
+    }
+
+    case 'GET_ENTRIES_FOR_AUTOFILL': {
+      const autofillState = await getVaultState()
+      if (!autofillState.isUnlocked || !autofillState.vault) {
+        return { success: false, error: 'Vault is locked' }
+      }
+      return { success: true, data: autofillState.vault.entries }
     }
 
     case 'SEARCH_ENTRIES':

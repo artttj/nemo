@@ -10,23 +10,34 @@
     <div id="app">
         <!-- SCREEN 1: LOCKED -->
         <div id="locked-screen" class="screen locked-screen">
-            <div class="locked-content">
-                <h1 class="locked-title">Vault locked</h1>
-                <p class="locked-desc">Enter your master password to access your credentials.</p>
-
-                <div class="feature-tokens">
-                    <span class="feature-token"><span class="token-label">AES-256</span></span>
-                    <span class="feature-token"><span class="token-label">Passkeys</span></span>
-                    <span class="feature-token"><span class="token-label">Local only</span></span>
+            <div class="locked-header">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                        <rect x="5" y="8" width="14" height="11" rx="2"/>
+                        <path d="M8 8V6a4 4 0 018 0v2"/>
+                    </svg>
                 </div>
+                <span class="logo-name">Nemo</span>
+            </div>
+
+            <div class="locked-content">
+                <h1 class="locked-title">Unlock your vault</h1>
+                <p class="locked-meta" id="vault-meta">Loading...</p>
 
                 <div class="locked-actions">
-                    <button class="btn btn-primary" data-action="unlock">Unlock vault</button>
-                    <div class="secondary-row">
-                        <button class="btn btn-secondary" data-action="biometric">Biometric</button>
-                        <button class="btn btn-ghost" data-action="recover">Recover</button>
-                    </div>
+                    <button class="btn btn-primary" id="unlock-btn" data-action="unlock" aria-label="Unlock vault">
+                        <span class="btn-text">Unlock vault</span>
+                        <span class="btn-loader" hidden></span>
+                    </button>
+                    <button class="btn btn-link" id="master-password-link" aria-label="Use master password to unlock">Use master password</button>
                 </div>
+
+                <p class="locked-trust">Your data is encrypted locally. We can't see your passwords.</p>
+            </div>
+
+            <div class="locked-recovery">
+                <p class="recovery-label">Can't access your vault?</p>
+                <button class="btn btn-ghost" data-action="recover">Restore with recovery phrase</button>
             </div>
         </div>
 
