@@ -18,7 +18,6 @@ export function AddEditModal({
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
   const [masterKey, setMasterKey] = useState('')
-  const [isFavorite, setIsFavorite] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
 
@@ -31,7 +30,6 @@ export function AddEditModal({
         setUrl(entry.url || '')
         setNotes(entry.notes || '')
         setMasterKey((entry as any).masterKey || '')
-        setIsFavorite(entry.favorite || false)
       } else {
         setTitle('')
         setUsername('')
@@ -39,7 +37,6 @@ export function AddEditModal({
         setUrl('')
         setNotes('')
         setMasterKey('')
-        setIsFavorite(false)
       }
       setShowPassword(false)
       setShowGenerateConfirm(false)
@@ -50,8 +47,7 @@ export function AddEditModal({
     if (!title.trim()) return
     
     const data: any = {
-      title: title.trim(),
-      favorite: isFavorite
+      title: title.trim()
     }
     
     if (username.trim()) data.username = username.trim()
@@ -66,9 +62,14 @@ export function AddEditModal({
 
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^*'
+    const limit = 256 - (256 % chars.length)
     let result = ''
-    for (let i = 0; i < 20; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    while (result.length < 20) {
+      const bytes = new Uint8Array(32)
+      crypto.getRandomValues(bytes)
+      for (let i = 0; i < bytes.length && result.length < 20; i++) {
+        if (bytes[i] < limit) result += chars.charAt(bytes[i] % chars.length)
+      }
     }
     setPassword(result)
     setShowPassword(true)
@@ -87,7 +88,7 @@ export function AddEditModal({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       
       {showGenerateConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -122,8 +123,8 @@ export function AddEditModal({
         </div>
       )}
       
-      <div 
-        className="absolute right-0 top-0 h-full w-[380px] bg-[var(--void)] flex flex-col border-l border-[var(--border)]"
+      <div
+        className="absolute right-0 top-0 h-full w-[380px] bg-[var(--void)] flex flex-col nemo-slide-panel"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
@@ -137,14 +138,6 @@ export function AddEditModal({
             </button>
             <span className="text-sm font-semibold text-[var(--text-primary)]">{entry ? 'Edit' : 'Add password'}</span>
           </div>
-          <button
-            onClick={() => setIsFavorite(!isFavorite)}
-            className={`p-2 rounded-md transition-colors ${isFavorite ? 'text-[var(--gold)] bg-[var(--gold-glow)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)]'}`}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -178,7 +171,7 @@ export function AddEditModal({
                 <button
                   type="button"
                   onClick={handleGenerateClick}
-                  className="text-[11px] font-medium text-[var(--gold)] hover:text-[var(--gold-hover)] transition-colors"
+                  className="text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Generate
                 </button>
@@ -230,8 +223,8 @@ export function AddEditModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Additional information..."
-                rows={2}
-                className="w-full nemo-input px-3 py-2 text-sm resize-none"
+                rows={4}
+                className="w-full nemo-input px-3 py-2 text-sm resize-y min-h-[100px]"
               />
             </div>
 
@@ -252,7 +245,7 @@ export function AddEditModal({
           <button 
             onClick={handleSave}
             disabled={!title.trim()}
-            className="w-full py-2.5 bg-[var(--gold)] text-white rounded-lg font-medium text-sm hover:bg-[var(--gold-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg font-medium text-sm hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {entry ? 'Save changes' : 'Add password'}
           </button>

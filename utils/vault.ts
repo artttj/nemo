@@ -90,14 +90,14 @@ export async function listVaults(): Promise<VaultInfo[]> {
   return registry.vaults
 }
 
-export async function createNewVault(name: string): Promise<{ vaultId: string; metadata: VaultMetadata }> {
+export async function createNewVault(name: string, vaultKey?: CryptoKey): Promise<{ vaultId: string; metadata: VaultMetadata }> {
   const registry = await loadRegistry()
   const vaultId = generateUUID()
   const vaultDirName = getVaultDirName(vaultId)
-  
+
   const root = await getOPFSRoot()
-  await root.getDirectoryHandle(vaultDirName, { create: true })
-  
+  const vaultDir = await root.getDirectoryHandle(vaultDirName, { create: true })
+
   const vaultInfo: VaultInfo = {
     id: vaultId,
     name: name || `Vault ${registry.vaults.length + 1}`,
@@ -105,26 +105,63 @@ export async function createNewVault(name: string): Promise<{ vaultId: string; m
     updatedAt: Date.now(),
     entryCount: 0
   }
-  
+
   registry.vaults.push(vaultInfo)
-  
+
   if (!registry.activeVaultId) {
     registry.activeVaultId = vaultId
     activeVaultId = vaultId
   }
-  
+
   await saveRegistry(registry)
-  
+
+  const salt = generateSalt()
   const metadata: VaultMetadata = {
     version: "1.0.0",
     vaultId,
     name: vaultInfo.name,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    salt: "",
+    salt,
     rpId: "nemo.local"
   }
-  
+
+  // If vaultKey is provided, initialize the vault files immediately
+  if (vaultKey) {
+    const wrappingKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["wrapKey", "unwrapKey"]
+    )
+
+    const { wrappedKey, iv: keyIv } = await wrapVaultKey(vaultKey, wrappingKey)
+
+    const initialVault: Vault = {
+      entries: [],
+      settings: {
+        autoLockMinutes: 15,
+        theme: "dark"
+      }
+    }
+
+    const { ciphertext, iv } = await encrypt(JSON.stringify(initialVault), vaultKey)
+
+    const metadataFile = await vaultDir.getFileHandle(METADATA_FILE, { create: true })
+    const metadataWriter = await metadataFile.createWritable()
+    await metadataWriter.write(JSON.stringify(metadata, null, 2))
+    await metadataWriter.close()
+
+    const vaultFile = await vaultDir.getFileHandle(VAULT_FILE, { create: true })
+    const vaultWriter = await vaultFile.createWritable()
+    await vaultWriter.write(JSON.stringify({ ciphertext, iv }))
+    await vaultWriter.close()
+
+    const wrappedKeyFile = await vaultDir.getFileHandle(WRAPPED_KEY_FILE, { create: true })
+    const wrappedKeyWriter = await wrappedKeyFile.createWritable()
+    await wrappedKeyWriter.write(JSON.stringify({ wrappedKey, keyIv }))
+    await wrappedKeyWriter.close()
+  }
+
   return { vaultId, metadata }
 }
 
@@ -430,10 +467,11 @@ export function getEntryByUrl(vault: Vault, url: string): VaultEntry | undefined
   }
 }
 
-export function getFaviconUrl(url: string): string | null {
+export function getFaviconUrl(url: string | undefined, size = 32): string | null {
+  if (!url) return null
   try {
-    const urlObj = new URL(url)
-    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`
+    const { hostname } = new URL(url)
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`
   } catch {
     return null
   }

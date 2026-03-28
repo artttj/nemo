@@ -1,40 +1,49 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Montserrat:wght@600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --void: #FAFAFA;
+  --void: #F8F8F6;
   --void-elevated: #FFFFFF;
-  --surface: #F5F5F5;
-  --surface-hover: #EBEBEB;
-  
-  --gold: #C98700;
-  --gold-hover: #D99600;
-  --gold-dim: #B87800;
-  --gold-glow: rgba(201, 135, 0, 0.12);
-  --gold-light: rgba(201, 135, 0, 0.08);
-  
-  --text-primary: #1A1A1A;
-  --text-secondary: #525252;
-  --text-tertiary: #737373;
-  --text-muted: #A3A3A3;
-  
-  --danger: #DC2626;
-  --danger-bg: rgba(220, 38, 38, 0.08);
-  --danger-light: rgba(220, 38, 38, 0.05);
+  --surface: #F0F0ED;
+  --surface-hover: #E6E6E2;
+
+  --accent: #1A1A18;
+  --accent-hover: #2C2C28;
+  --accent-text: #FFFFFF;
+  --accent-glow: rgba(26, 26, 24, 0.08);
+  --accent-light: rgba(26, 26, 24, 0.04);
+
+  --text-primary: #1A1A18;
+  --text-secondary: #4D4D48;
+  --text-tertiary: #78786F;
+  --text-muted: #A8A89E;
+
+  --danger: #D93025;
+  --danger-bg: rgba(217, 48, 37, 0.06);
+  --danger-light: rgba(217, 48, 37, 0.04);
   --success: #16A34A;
-  --success-light: rgba(22, 163, 74, 0.1);
-  
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
-  --border-strong: rgba(0, 0, 0, 0.2);
-  
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --success-light: rgba(22, 163, 74, 0.08);
+
+  --border: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.11);
+  --border-strong: rgba(0, 0, 0, 0.16);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.03);
+
+  --void-dark: #1A1A18;
+  --void-dark-elevated: #2C2C28;
+  --text-dark-primary: #FFFFFF;
+  --text-dark-secondary: rgba(255, 255, 255, 0.7);
+  --text-dark-tertiary: rgba(255, 255, 255, 0.5);
+  --text-dark-muted: rgba(255, 255, 255, 0.35);
+  --border-dark: rgba(255, 255, 255, 0.08);
+  --border-dark-hover: rgba(255, 255, 255, 0.12);
 }
 
 * {
@@ -55,8 +64,8 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--void);
   color: var(--text-secondary);
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+  line-height: 1.55;
+  letter-spacing: -0.011em;
 }
 
 .font-brand {
@@ -75,31 +84,30 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 4px;
-  border: 2px solid var(--surface);
+  background: var(--border-hover);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: var(--text-muted);
 }
 
 :focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
 }
 
 ::selection {
-  background: var(--gold-light);
+  background: var(--accent-glow);
   color: var(--text-primary);
 }
 
@@ -157,43 +165,44 @@ textarea::placeholder {
 .nemo-input {
   background: var(--void-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
-  font-size: 15px;
-  transition: all 0.2s ease;
+  font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-shadow: var(--shadow-sm);
 }
 
 .nemo-input:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 4px var(--gold-glow), var(--shadow);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
-.nemo-input:hover {
+.nemo-input:hover:not(:focus) {
   border-color: var(--border-hover);
 }
 
 .nemo-button-primary {
-  background: var(--gold);
-  color: #FFFFFF;
+  background: var(--accent);
+  color: var(--accent-text);
   font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 10px;
+  padding: 14px 20px;
+  min-height: 48px;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .nemo-button-primary:hover {
-  background: var(--gold-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  background: var(--accent-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 .nemo-button-primary:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
+  transform: scale(0.98);
+  box-shadow: none;
 }
 
 .nemo-button-secondary {
@@ -204,14 +213,19 @@ textarea::placeholder {
   font-size: 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  transition: all 0.2s ease;
+  padding: 14px 20px;
+  min-height: 48px;
+  transition: background 0.15s ease, border-color 0.15s ease;
   box-shadow: var(--shadow-sm);
 }
 
 .nemo-button-secondary:hover {
   background: var(--surface);
   border-color: var(--border-hover);
-  box-shadow: var(--shadow);
+}
+
+.nemo-button-secondary:active {
+  background: var(--surface-hover);
 }
 
 .nemo-button-ghost {
@@ -221,27 +235,26 @@ textarea::placeholder {
   font-weight: 500;
   font-size: 14px;
   border: none;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .nemo-button-ghost:hover {
   color: var(--text-primary);
   background: var(--surface);
-  border-radius: 8px;
 }
 
 .nemo-card {
   background: var(--void-elevated);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  transition: all 0.2s ease;
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-shadow: var(--shadow-sm);
 }
 
 .nemo-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
 }
 
 .nemo-pill {
@@ -250,9 +263,9 @@ textarea::placeholder {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   font-size: 13px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: all 0.2s ease;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .nemo-pill:hover {
@@ -263,25 +276,24 @@ textarea::placeholder {
 .nemo-pill-active {
   background: var(--surface);
   color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
 }
 
 .nemo-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--accent);
 }
 
 .nemo-status-dot::after {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--gold);
-  opacity: 0.2;
-  animation: nemo-pulse 2s ease-in-out infinite;
+  background: var(--accent);
+  opacity: 0.15;
+  animation: nemo-pulse 2.5s ease-in-out infinite;
 }
 
 .nemo-copy-feedback {
@@ -303,5 +315,30 @@ textarea::placeholder {
 
 .nemo-empty-icon {
   background: var(--void-elevated);
-  border: 2px dashed var(--border);
+  border: 1.5px dashed var(--border-hover);
+}
+
+.nemo-entry-row {
+  transition: background 0.12s ease;
+}
+
+.nemo-entry-row:active {
+  background: var(--surface-hover);
+}
+
+.nemo-divider-top {
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.nemo-divider-bottom {
+  box-shadow: 0 -1px 0 var(--border);
+}
+
+.nemo-brand-icon {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.nemo-slide-panel {
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.04);
 }

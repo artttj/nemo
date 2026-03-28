@@ -89,6 +89,9 @@ export type MessageType =
   | "WEBAUTHN_IS_SUPPORTED"
   | "WEBAUTHN_RESULT"
   | "HAS_PIN_SETUP"
+  | "GET_PIN_LENGTH"
+  | "SETUP_VAULT_PIN"
+  | "REMOVE_VAULT_PIN"
 
 export interface Message<T = unknown> {
   type: MessageType

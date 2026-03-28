@@ -47,7 +47,8 @@ import {
   loadPinData,
   clearPinData,
   hasPinSetup,
-  updatePinAttempts
+  updatePinAttempts,
+  getPinLength
 } from "../vault/pin"
 
 let vaultState: VaultState = {
@@ -246,15 +247,16 @@ export async function unlockVault(): Promise<MessageResponse<Vault>> {
   }
 }
 
-export async function setupVaultPin(pin: string): Promise<MessageResponse> {
+export async function setupVaultPin(pin: string, vaultKey?: CryptoKey): Promise<MessageResponse> {
   try {
-    if (!sessionKey) {
+    const key = vaultKey || sessionKey
+    if (!key) {
       return { success: false, error: "Vault must be unlocked to set up PIN" }
     }
-    
-    const { pinData } = await setupPin(pin, sessionKey)
+
+    const { pinData } = await setupPin(pin, key)
     await storePinData(pinData)
-    
+
     return { success: true }
   } catch (error) {
     console.error("Setup PIN error:", error)
@@ -324,6 +326,10 @@ export async function unlockVaultWithPin(pin: string): Promise<MessageResponse<V
 
 export async function hasPinConfigured(): Promise<boolean> {
   return await hasPinSetup()
+}
+
+export async function getPinConfiguredLength(): Promise<number> {
+  return await getPinLength()
 }
 
 export async function removeVaultPin(): Promise<MessageResponse> {
@@ -547,11 +553,36 @@ export async function getVaultList(): Promise<MessageResponse<VaultRegistry>> {
 
 export async function switchVault(vaultId: string): Promise<MessageResponse> {
   try {
+    const { setActiveVault, loadVault, loadVaultMetadata } = await import("./vault")
     const success = await setActiveVault(vaultId)
     if (!success) {
       return { success: false, error: "Vault not found" }
     }
-    
+
+    // If we have a session key, try to load the new vault immediately
+    // This works for vaults created in this session (initialized with same key)
+    if (sessionKey) {
+      try {
+        const metadata = await loadVaultMetadata()
+        if (metadata) {
+          const vault = await loadVault(sessionKey)
+          if (vault) {
+            vaultState = {
+              isUnlocked: true,
+              vault,
+              metadata,
+              lastActivity: Date.now()
+            }
+            resetAutoLock()
+            return { success: true }
+          }
+        }
+      } catch {
+        // Failed to load with current session key, will lock and require auth
+      }
+    }
+
+    // Reset to locked state - vault needs authentication
     vaultState = {
       isUnlocked: false,
       vault: null,
@@ -559,7 +590,7 @@ export async function switchVault(vaultId: string): Promise<MessageResponse> {
       lastActivity: Date.now()
     }
     sessionKey = null
-    
+
     return { success: true }
   } catch (error) {
     return {
@@ -572,7 +603,8 @@ export async function switchVault(vaultId: string): Promise<MessageResponse> {
 export async function createNewVaultInRegistry(name: string): Promise<MessageResponse<VaultInfo>> {
   try {
     const { createNewVault } = await import("./vault")
-    const result = await createNewVault(name)
+    // Pass the current session key to initialize the vault immediately
+    const result = await createNewVault(name, sessionKey || undefined)
     return { success: true, data: { id: result.vaultId, name: result.metadata.name, createdAt: result.metadata.createdAt, updatedAt: result.metadata.updatedAt, entryCount: 0 } }
   } catch (error) {
     return {

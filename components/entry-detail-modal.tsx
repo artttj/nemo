@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { VaultEntry } from '~/utils/types'
+import { getFaviconUrl } from '~/utils/vault'
+import { getDomain } from '~/utils/url'
 
 interface EntryDetailModalProps {
   entry: VaultEntry | null
@@ -14,32 +16,32 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
   const [copied, setCopied] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    setShowPassword(false)
+    setCopied(null)
+    setShowMenu(false)
+    setShowDeleteConfirm(false)
+  }, [entry?.id])
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen || !entry) return null
+
+  const favicon = getFaviconUrl(entry.url, 64)
+  const domain = getDomain(entry.url)
 
   const handleCopy = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text)
     setCopied(field)
-    setTimeout(() => setCopied(null), 2000)
-  }
-
-  const getFaviconUrl = (url?: string): string | null => {
-    if (!url) return null
-    try {
-      const urlObj = new URL(url)
-      return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`
-    } catch {
-      return null
-    }
-  }
-
-  const getDomain = (url?: string): string | null => {
-    if (!url) return null
-    try {
-      return new URL(url).hostname.replace(/^www\./, '')
-    } catch {
-      return url
-    }
+    copyTimeoutRef.current = setTimeout(() => setCopied(null), 2000)
   }
 
   const handleDelete = () => {
@@ -49,10 +51,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
   }
 
   return (
-    <div className={`fixed inset-0 z-50 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
-      style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
+    <div className={`fixed inset-0 z-50 transition-opacity duration-200 ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
     >
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -85,10 +86,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
         </div>
       )}
       
-      <div className={`absolute right-0 top-0 h-full w-[380px] bg-[var(--void)] flex flex-col transition-transform duration-200 ease-out ${
+      <div className={`absolute right-0 top-0 h-full w-[380px] bg-[var(--void)] flex flex-col nemo-slide-panel transition-transform duration-200 ease-out ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
-        style={{ borderLeft: '1px solid var(--border)' }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
           <button 
@@ -146,31 +146,27 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
           <div className="px-4 py-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {getFaviconUrl(entry.url) ? (
-                  <img 
-                    src={getFaviconUrl(entry.url)!} 
-                    alt="" 
+                {favicon ? (
+                  <img
+                    src={favicon}
+                    alt=""
                     className="w-7 h-7"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none'
+                      ;(e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden')
                     }}
                   />
                 ) : null}
-                <span className={`text-lg font-semibold text-[var(--text-secondary)] ${getFaviconUrl(entry.url) ? 'hidden' : ''}`}>
+                <span className={`text-lg font-semibold text-[var(--text-secondary)] ${favicon ? 'hidden' : ''}`}>
                   {entry.title.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-base font-semibold text-[var(--text-primary)] truncate">{entry.title}</h1>
-                {getDomain(entry.url) && (
-                  <p className="text-xs text-[var(--text-tertiary)] truncate">{getDomain(entry.url)}</p>
+                {domain && (
+                  <p className="text-xs text-[var(--text-tertiary)] truncate">{domain}</p>
                 )}
               </div>
-              {entry.favorite && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--gold)" stroke="none">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              )}
             </div>
           </div>
 
@@ -179,12 +175,12 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">Username</p>
-                    <p className="text-sm text-[var(--text-primary)] truncate font-mono">{entry.username}</p>
+                    <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-0.5 font-medium">Username</p>
+                    <p className="text-[13px] text-[var(--text-primary)] truncate font-mono">{entry.username}</p>
                   </div>
                   <button
                     onClick={() => handleCopy(entry.username!, 'username')}
-                    className="ml-2 p-2 text-[var(--text-tertiary)] hover:text-[var(--gold)] hover:bg-[var(--gold-glow)] rounded-md transition-all flex-shrink-0"
+                    className="ml-2 p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors flex-shrink-0"
                     title="Copy username"
                   >
                     {copied === 'username' ? (
@@ -206,15 +202,15 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">Password</p>
-                    <p className="text-sm text-[var(--text-primary)] truncate font-mono">
+                    <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-0.5 font-medium">Password</p>
+                    <p className="text-[13px] text-[var(--text-primary)] truncate font-mono">
                       {showPassword ? entry.password : '•'.repeat(Math.min(entry.password.length, 20))}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-all"
+                      className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors"
                       title={showPassword ? 'Hide password' : 'Show password'}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -233,7 +229,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
                     </button>
                     <button
                       onClick={() => handleCopy(entry.password!, 'password')}
-                      className="p-2 text-[var(--text-tertiary)] hover:text-[var(--gold)] hover:bg-[var(--gold-glow)] rounded-md transition-all"
+                      className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors"
                       title="Copy password"
                     >
                       {copied === 'password' ? (
@@ -256,12 +252,12 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
               <div className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">Website</p>
+                    <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-0.5 font-medium">Website</p>
                     <a 
                       href={entry.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-sm text-[var(--gold)] hover:underline truncate block"
+                      className="text-sm text-[var(--text-primary)] hover:underline truncate block"
                     >
                       {entry.url}
                     </a>
@@ -270,7 +266,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
                     href={entry.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 p-2 text-[var(--text-tertiary)] hover:text-[var(--gold)] hover:bg-[var(--gold-glow)] rounded-md transition-all flex-shrink-0"
+                    className="ml-2 p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors flex-shrink-0"
                     title="Open website"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -283,7 +279,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
 
             {entry.notes && (
               <div className="px-4 py-3">
-                <p className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Notes</p>
+                <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-1 font-medium">Notes</p>
                 <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">{entry.notes}</p>
               </div>
             )}

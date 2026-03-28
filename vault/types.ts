@@ -98,4 +98,5 @@ export interface PinData {
   createdAt: number
   attemptsRemaining: number
   lockedUntil: number | null
+  pinLength: number
 }

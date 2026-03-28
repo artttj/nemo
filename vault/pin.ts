@@ -40,7 +40,7 @@ function deriveKeyFromPin(pin: string, salt: Uint8Array): Promise<CryptoKey> {
       keyMaterial,
       { name: "AES-GCM", length: 256 },
       false,
-      ["encrypt", "decrypt"]
+      ["encrypt", "decrypt", "wrapKey", "unwrapKey"]
     )
   })
 }
@@ -65,7 +65,8 @@ export async function setupPin(
     salt: bufferToBase64(salt),
     createdAt: Date.now(),
     attemptsRemaining: MAX_PIN_ATTEMPTS,
-    lockedUntil: null
+    lockedUntil: null,
+    pinLength: pin.length
   }
   
   return { pinData }
@@ -140,4 +141,9 @@ export function updatePinAttempts(pinData: PinData, attemptsRemaining: number, l
     attemptsRemaining,
     lockedUntil
   }
+}
+
+export async function getPinLength(): Promise<number> {
+  const pinData = await loadPinData()
+  return pinData?.pinLength ?? 4
 }

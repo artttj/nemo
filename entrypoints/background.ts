@@ -19,12 +19,17 @@ import {
   handleClipboardCopy,
   checkVaultExists,
   hasPinConfigured,
+  getPinConfiguredLength,
+  setupVaultPin,
+  removeVaultPin,
   getVaultList,
   switchVault,
   createNewVaultInRegistry,
   renameVault,
   deleteVault
 } from '../utils/vault-ops'
+import { authenticateWithCredential, getStoredCredentialId } from '../utils/auth'
+import { loadVaultMetadata, loadVaultKey } from '../utils/vault'
 import { handleWebAuthnResult } from '../utils/webauthn-handler'
 import { setActiveVault as setVaultActive } from '../utils/vault'
 
@@ -55,6 +60,48 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
 
     case 'HAS_PIN_SETUP':
       return { success: true, data: await hasPinConfigured() }
+
+    case 'GET_PIN_LENGTH':
+      return { success: true, data: await getPinConfiguredLength() }
+
+    case 'SETUP_VAULT_PIN': {
+      const result = await setupVaultPin(message.payload as string)
+      if (result.success) return result
+
+      if (result.error === 'Vault must be unlocked to set up PIN') {
+        try {
+          const credentialId = await getStoredCredentialId()
+          if (!credentialId) {
+            return { success: false, error: 'No credential found. Please unlock first.' }
+          }
+
+          const { exists: vaultExists } = await checkVaultExists()
+          if (!vaultExists) {
+            return { success: false, error: 'No vault found.' }
+          }
+
+          const metadata = await loadVaultMetadata()
+          if (!metadata) {
+            return { success: false, error: 'Failed to load vault metadata.' }
+          }
+
+          const { wrappingKey } = await authenticateWithCredential(credentialId, metadata.salt)
+          const vaultKey = await loadVaultKey(wrappingKey)
+          if (!vaultKey) {
+            return { success: false, error: 'Failed to unwrap vault key.' }
+          }
+
+          return await setupVaultPin(message.payload as string, vaultKey)
+        } catch (error: any) {
+          return { success: false, error: error.message || 'Authentication failed.' }
+        }
+      }
+
+      return result
+    }
+
+    case 'REMOVE_VAULT_PIN':
+      return removeVaultPin()
 
     case 'GET_VAULT_REGISTRY':
       return getVaultList()

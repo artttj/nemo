@@ -9,19 +9,21 @@ interface LockedViewProps {
   vaultExists?: boolean
   hasCredential?: boolean
   hasPinSetup?: boolean
+  pinLength?: number
   entryCount?: number
   lastSync?: number
 }
 
-export function LockedView({ 
-  onUnlock, 
-  onCreate, 
-  onRecoveryUnlock, 
-  onRecoveryCreate, 
-  onPinUnlock, 
-  vaultExists, 
-  hasCredential, 
+export function LockedView({
+  onUnlock,
+  onCreate,
+  onRecoveryUnlock,
+  onRecoveryCreate,
+  onPinUnlock,
+  vaultExists,
+  hasCredential,
   hasPinSetup,
+  pinLength = 4,
   entryCount = 0,
   lastSync
 }: LockedViewProps) {
@@ -39,10 +41,9 @@ export function LockedView({
   const showFirstTime = !vaultExists || !hasCredential
 
   useEffect(() => {
-    if (isUnlocking) {
-      const timer = setTimeout(() => setIsUnlocking(false), 1200)
-      return () => clearTimeout(timer)
-    }
+    if (!isUnlocking) return
+    const timer = setTimeout(() => setIsUnlocking(false), 1200)
+    return () => clearTimeout(timer)
   }, [isUnlocking])
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export function LockedView({
     } else if (platform.includes('win')) {
       setBiometricAvailable('hello')
     }
-  }, [])
+  }, []) // Platform detection runs once on mount
 
   const handleUnlock = async () => {
     setLoading('unlock')
@@ -166,7 +167,7 @@ export function LockedView({
     return (
       <div className="w-[400px] min-h-[560px] flex flex-col bg-[var(--void)]">
         <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border)]">
-          <button 
+          <button
             onClick={() => { setShowRecovery(false); setRecoveryPhrase(''); setError(null); }}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium flex items-center gap-2 px-2 py-1 -ml-2 rounded-lg hover:bg-[var(--surface)]"
           >
@@ -175,7 +176,7 @@ export function LockedView({
             </svg>
             Back
           </button>
-          <div className="font-brand text-[var(--gold)] text-lg tracking-wider">NEMO</div>
+          <div className="font-brand text-[var(--accent)] text-lg tracking-wider">NEMO</div>
         </div>
 
         <div className="flex-1 px-5 py-8 flex flex-col">
@@ -184,12 +185,12 @@ export function LockedView({
               {showFirstTime ? 'Create vault from recovery' : 'Restore your vault'}
             </h1>
             <p className="text-[var(--text-secondary)] text-[15px] leading-relaxed">
-              {showFirstTime 
+              {showFirstTime
                 ? 'Enter your 12-word recovery phrase to create a new vault.'
                 : 'Enter your 12-word recovery phrase to restore access to your passwords.'}
             </p>
           </div>
-          
+
           <div className="flex-1">
             <textarea
               value={recoveryPhrase}
@@ -206,10 +207,9 @@ export function LockedView({
               placeholder="word1 word2 word3..."
               rows={6}
               autoFocus
-              className="w-full nemo-input p-4 text-[15px] resize-none"
-              style={{ minHeight: '140px' }}
+              className="w-full nemo-input p-4 text-[15px] resize-none min-h-[140px]"
             />
-            
+
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-[var(--text-tertiary)]">
                 {recoveryPhrase.trim().split(/\s+/).filter(Boolean).length} / 12 words
@@ -229,8 +229,8 @@ export function LockedView({
               disabled={loading !== null || !recoveryPhrase.trim()}
               className="w-full nemo-button-primary py-4 text-[15px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading === 'recovery' 
-                ? (showFirstTime ? 'Creating...' : 'Restoring...') 
+              {loading === 'recovery'
+                ? (showFirstTime ? 'Creating...' : 'Restoring...')
                 : (showFirstTime ? 'Create vault' : 'Restore vault')}
             </button>
           </div>
@@ -243,7 +243,7 @@ export function LockedView({
     return (
       <div className="w-[400px] min-h-[560px] flex flex-col bg-[var(--void)]">
         <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border)]">
-          <button 
+          <button
             onClick={() => { setShowPin(false); setPin(''); setError(null); }}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium flex items-center gap-2 px-2 py-1 -ml-2 rounded-lg hover:bg-[var(--surface)]"
           >
@@ -252,13 +252,13 @@ export function LockedView({
             </svg>
             Back
           </button>
-          <div className="font-brand text-[var(--gold)] text-lg tracking-wider">NEMO</div>
+          <div className="font-brand text-[var(--accent)] text-lg tracking-wider">NEMO</div>
         </div>
 
         <div className="flex-1 px-5 py-12 flex flex-col">
           <div className="mb-10 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--surface)] flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
@@ -267,32 +267,32 @@ export function LockedView({
               Enter PIN
             </h1>
             <p className="text-[var(--text-secondary)] text-[15px]">
-              Unlock with your device PIN
+              Unlock with your device PIN ({pinLength} digits)
             </p>
           </div>
-          
+
           <div className="flex-1 flex flex-col items-center">
             <div className="flex gap-3 mb-8">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+              {Array.from({ length: pinLength }).map((_, i) => (
                 <div
                   key={i}
-                  className={`w-4 h-4 rounded-full transition-all duration-200 ${
+                  className={`w-4 h-4 rounded-full transition-[background-color,transform] duration-200 ${
                     i < pin.length
-                      ? 'bg-[var(--gold)] scale-110'
+                      ? 'bg-[var(--accent)] scale-110'
                       : 'bg-[var(--border)]'
                   }`}
                 />
               ))}
             </div>
-            
+
             <input
               type="tel"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={6}
+              maxLength={pinLength}
               value={pin}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '').slice(0, 6)
+                const value = e.target.value.replace(/\D/g, '').slice(0, pinLength)
                 setPin(value)
                 if (error) setError(null)
               }}
@@ -309,12 +309,16 @@ export function LockedView({
                   onClick={() => {
                     if (key === 'del') {
                       setPin(pin.slice(0, -1))
-                    } else if (key && pin.length < 6) {
+                    } else if (key && pin.length < pinLength) {
                       setPin(pin + key)
                     }
                   }}
-                  disabled={key === '' || loading !== null}
-                  className={`w-[72px] h-[72px] rounded-2xl text-2xl font-semibold transition-all ${
+                  disabled={
+                    key === '' ||
+                    loading !== null ||
+                    (key !== '' && key !== 'del' && pin.length >= pinLength)
+                  }
+                  className={`w-[72px] h-[72px] rounded-2xl text-2xl font-semibold transition-[background-color,transform] ${
                     key === ''
                       ? 'invisible'
                       : key === 'del'
@@ -332,6 +336,14 @@ export function LockedView({
                 </button>
               ))}
             </div>
+
+            <button
+              onClick={handlePinUnlock}
+              disabled={pin.length !== pinLength || loading !== null}
+              className="mt-6 w-full max-w-[240px] py-3 bg-[var(--accent)] hover:opacity-90 text-[var(--accent-text)] rounded-xl font-semibold text-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading === 'pin' ? 'Unlocking...' : 'Unlock'}
+            </button>
           </div>
 
           {error && (
@@ -344,17 +356,6 @@ export function LockedView({
     )
   }
 
-  const formatSyncTime = (timestamp: number | undefined) => {
-    if (!timestamp) return 'Offline'
-    const seconds = Math.floor((Date.now() - timestamp) / 1000)
-    if (seconds < 60) return `${seconds}s ago`
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    return `${Math.floor(hours / 24)}d ago`
-  }
-
   const getBiometricLabel = () => {
     if (!showFirstTime) {
       if (biometricAvailable === 'touchid') return 'Unlock with Touch ID'
@@ -363,48 +364,46 @@ export function LockedView({
     return showFirstTime ? 'Create vault' : 'Unlock vault'
   }
 
-  const syncText = formatSyncTime(lastSync)
-
   return (
     <div className="w-[400px] min-h-[420px] flex flex-col bg-[var(--void)]">
       {isUnlocking && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[var(--void)] animate-scale-in">
           <div className="text-center">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--gold)] flex items-center justify-center shadow-lg">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5">
+            <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-[var(--accent)] flex items-center justify-center nemo-brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </div>
-            <p className="text-[var(--text-primary)] font-semibold">Unlocking...</p>
+            <p className="text-[var(--text-primary)] font-semibold text-sm">Unlocking...</p>
           </div>
         </div>
       )}
 
       <div className="px-5 pt-5 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-[var(--surface)] flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center nemo-brand-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <span className="font-semibold text-[var(--text-primary)] text-base">Nemo</span>
+          <span className="font-semibold text-[var(--text-primary)] text-[15px]">Nemo</span>
         </div>
       </div>
 
       <div className="flex-1 px-5 py-3 flex flex-col">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-0.5">
-          {showFirstTime ? 'Create vault' : 'Unlock vault'}
+        <h1 className="text-xl font-bold text-[var(--text-primary)] mb-0.5">
+          {showFirstTime ? 'Create vault' : 'Welcome back'}
         </h1>
-        <p className="text-[var(--text-secondary)] text-sm mb-3">
-          {showFirstTime 
+        <p className="text-[var(--text-tertiary)] text-[13px] mb-4">
+          {showFirstTime
             ? 'End-to-end encrypted password storage'
-            : `${entryCount} ${entryCount === 1 ? 'password' : 'passwords'} · ${syncText}`}
+            : `${entryCount} ${entryCount === 1 ? 'password' : 'passwords'} stored securely`}
         </p>
 
         {error && (
           <div className="mb-3 p-3 bg-[var(--danger-bg)] rounded-lg border border-[var(--danger)]/20">
-            <p className="text-[var(--danger)] text-sm font-medium">{error}</p>
+            <p className="text-[var(--danger)] text-[13px] font-medium">{error}</p>
           </div>
         )}
 
@@ -412,7 +411,7 @@ export function LockedView({
           <button
             onClick={showFirstTime ? handleCreate : handleUnlock}
             disabled={loading !== null}
-            className="w-full nemo-button-primary py-3 text-[15px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading === 'create' || loading === 'unlock'
               ? 'Verifying...'
@@ -458,7 +457,7 @@ export function LockedView({
                 <button
                   onClick={handleMasterKeyUnlock}
                   disabled={loading !== null || !masterKeyInput.trim()}
-                  className="flex-1 py-2 bg-[var(--surface)] hover:bg-[var(--void-elevated)] text-[var(--text-primary)] rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-2 bg-[var(--surface)] hover:bg-[var(--void-elevated)] text-[var(--text-primary)] rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading === 'recovery' ? 'Unlocking...' : 'Unlock'}
                 </button>
@@ -483,24 +482,24 @@ export function LockedView({
       </div>
 
       <div className="px-5 py-3 mt-auto">
-        <div className="flex items-center gap-2 p-3 bg-[var(--surface)] rounded-lg">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-2.5 p-3 bg-[var(--surface)] rounded-lg">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <div className="flex-1">
             <p className="text-[var(--text-primary)] text-xs font-medium">Encrypted on this device</p>
-            <p className="text-[var(--text-tertiary)] text-[11px]">Your data never leaves unencrypted</p>
+            <p className="text-[var(--text-muted)] text-[11px]">Your data never leaves unencrypted</p>
           </div>
         </div>
       </div>
 
-      <div className="px-5 py-3 border-t border-[var(--border)]">
+      <div className="px-5 py-3 nemo-divider-bottom">
         <div className="flex items-center justify-between">
-          <span className="text-[var(--text-tertiary)] text-xs">Can't access vault?</span>
+          <span className="text-[var(--text-muted)] text-xs">Can't access vault?</span>
           <button
             onClick={() => setShowRecovery(true)}
             disabled={loading !== null}
-            className="text-[var(--gold)] hover:opacity-80 text-xs font-medium transition-opacity"
+            className="text-[var(--accent)] hover:opacity-80 text-xs font-medium transition-opacity"
           >
             Use recovery phrase
           </button>

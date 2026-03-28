@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { VaultEntry } from '~/utils/types'
 
 function getColorForEntry(title: string): { bg: string; text: string } {
@@ -40,6 +40,15 @@ export function EntryCard({
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [isHovered, setIsHovered] = useState(false)
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const initial = entry.title.charAt(0).toUpperCase()
   const color = getColorForEntry(entry.title)
@@ -48,7 +57,7 @@ export function EntryCard({
   const handleCopy = async (text: string, type: 'username' | 'password') => {
     await navigator.clipboard.writeText(text)
     setCopied(type)
-    setTimeout(() => setCopied(null), 2000)
+    copyTimeoutRef.current = setTimeout(() => setCopied(null), 2000)
   }
 
   return (
@@ -97,18 +106,6 @@ export function EntryCard({
             >
               {domain || entry.username || 'Credential'}
             </p>          </div>
-
-          {/* Star indicator */}
-          {entry.favorite && (
-            <div 
-              className="flex-shrink-0"
-              style={{ color: 'var(--gold)' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-            </div>
-          )}
 
           {/* Expand chevron */}
           <div
