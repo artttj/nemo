@@ -4,7 +4,9 @@ A local-first, privacy-focused password manager browser extension with passkey a
 
 ## Features
 
+- **Multi-Vault Support** - Create and manage multiple vaults (work, personal, etc.)
 - **Passkey Authentication** - Unlock your vault using biometrics (Touch ID, Face ID, Windows Hello)
+- **PIN Unlock** - Alternative unlock method with configurable PIN
 - **AES-256-GCM Encryption** - All data encrypted at rest with industry-standard cryptography
 - **PBKDF2 Key Derivation** - 600,000 iterations for password-based unlock
 - **Local Storage (OPFS)** - Your data never leaves your device
@@ -117,10 +119,11 @@ nemo/
 │   ├── content.ts          # Content scripts
 │   └── webauthn/          # WebAuthn flow
 ├── components/
-│   ├── tactical-popup.tsx   # Main popup (tactical UI)
-│   ├── tactical-entry-modal.tsx  # Entry detail modal
-│   ├── locked-view.tsx     # Locked state
+│   ├── vault-selector.tsx   # Vault switching dropdown
+│   ├── add-edit-modal.tsx   # Add/edit entry modal
+│   ├── entry-detail-modal.tsx # Entry detail view
 │   ├── entry-card.tsx      # Entry card component
+│   ├── locked-view.tsx     # Locked state
 │   ├── settings-modal.tsx  # Settings modal
 │   └── ui.tsx             # Shared UI components
 ├── vault/                  # New vault architecture
@@ -175,11 +178,12 @@ The tactical UI uses:
 
 ### Current MVP
 
-- Local-only (no sync, no backend)
+- Local-only (no sync between devices)
 - No password strength checker
 - No breach monitoring
 - Manual entry only (no form capture)
 - No custom fields
+- No folder/categories (use multiple vaults instead)
 
 ### Platform Constraints
 
