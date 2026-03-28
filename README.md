@@ -174,19 +174,36 @@ The tactical UI uses:
 - Edge 102+
 - Firefox 109+ (with WXT adapter)
 
-## Limitations
+## What Works
 
-### Current MVP
+### Vault Management
+- Create multiple vaults for different purposes
+- Switch between vaults instantly
+- Rename and delete vaults
+- Each vault has separate encryption
 
-- Local-only (no sync between devices)
-- No password strength checker
-- No breach monitoring
-- Manual entry only (no form capture)
-- No custom fields
-- No folder/categories (use multiple vaults instead)
+### Authentication
+- Biometric unlock via WebAuthn (Touch ID, Windows Hello)
+- PIN unlock as backup method
+- 12-word recovery phrase for emergency access
+- Auto-lock after inactivity
+
+### Password Storage
+- Add, edit, and delete password entries
+- Store title, username, password, URL, and notes
+- Generate secure passwords
+- Copy credentials to clipboard with auto-clear
+
+### Import/Export
+- Export vault as encrypted JSON backup
+- Import from backup file
+
+### Browser Integration
+- Extension popup for quick access
+- Auto-fill detection on login pages
+- Favicon fetching for visual identification
 
 ### Platform Constraints
-
 - WebAuthn requires HTTPS or localhost
 - OPFS requires secure context
 - Passkey backup depends on platform sync (iCloud, Google Password Manager)
