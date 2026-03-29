@@ -20,6 +20,16 @@ Export your vault regularly. You are responsible for your own backups.
 - Auto-fill on login pages
 - Export/import for backups
 
+## Screenshots
+
+| Locked | Unlocked |
+|--------|----------|
+| ![Locked](images/locked.png) | ![Unlocked](images/unlocked.png) |
+
+| Extension Popup | Auto-fill on Google |
+|-----------------|---------------------|
+| ![Popup](images/popup.png) | ![Autofill](images/autofill.png) |
+
 ## Tech
 
 - WXT for the extension framework
