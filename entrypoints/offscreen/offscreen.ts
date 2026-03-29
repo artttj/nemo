@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -9,13 +9,12 @@ const RP_ID = 'nemo.local'
 
 console.log('Offscreen WebAuthn document loaded')
 
-// Listen for messages from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'WEBAUTHN_REGISTER') {
     handleRegister(message.payload)
       .then(result => sendResponse({ success: true, data: result }))
       .catch(error => sendResponse({ success: false, error: error.message }))
-    return true // Async response
+    return true
   }
   
   if (message.type === 'WEBAUTHN_AUTHENTICATE') {

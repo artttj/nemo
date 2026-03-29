@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 

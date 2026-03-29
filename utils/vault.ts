@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -136,7 +136,6 @@ export async function createNewVault(name: string, vaultKey?: CryptoKey): Promis
     rpId: "nemo.local"
   }
 
-  // If vaultKey is provided, initialize the vault files immediately
   if (vaultKey) {
     const wrappingKey = await crypto.subtle.generateKey(
       { name: "AES-GCM", length: 256 },

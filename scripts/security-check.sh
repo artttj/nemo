@@ -1,13 +1,8 @@
 #!/bin/bash
-# Security check script for Nemo Password Manager
-# Run manually: ./scripts/security-check.sh
-# Or use Claude Code command: /security-check
-
 set -e
 
 echo "Running security checks..."
 
-# Find all TypeScript/JavaScript files (excluding node_modules and build)
 FILES=$(find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \) \
   -not -path "*/node_modules/*" \
   -not -path "*/.pnpm/*" \
@@ -57,7 +52,6 @@ done
 echo ""
 echo "=== Checking for password logging ==="
 for FILE in $FILES; do
-  # Skip test files - debug logging is acceptable there
   if [[ "$FILE" == *"test"* ]] || [[ "$FILE" == *"spec"* ]] || [[ "$FILE" == *"mock"* ]]; then
     continue
   fi

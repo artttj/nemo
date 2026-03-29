@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -194,7 +194,6 @@ export function bufferToHex(buffer: Uint8Array): string {
     .join("")
 }
 
-// Password generation constants
 const DEFAULT_PASSWORD_LENGTH = 20
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 64
@@ -217,7 +216,6 @@ export function generatePassword(options: PasswordOptions = {}): string {
     symbols = true
   } = options
 
-  // Build character set
   let chars = ''
   if (lowercase) chars += 'abcdefghijklmnopqrstuvwxyz'
   if (uppercase) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -255,7 +253,6 @@ export function generateSecurePassword(options: PasswordOptions = {}): string {
 
   const clampedLength = Math.max(MIN_PASSWORD_LENGTH, Math.min(length, MAX_PASSWORD_LENGTH))
 
-  // Build pools
   const pools: string[] = []
   if (lowercase) pools.push('abcdefghijklmnopqrstuvwxyz')
   if (uppercase) pools.push('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
@@ -266,14 +263,12 @@ export function generateSecurePassword(options: PasswordOptions = {}): string {
     throw new Error('At least one character type must be enabled')
   }
 
-  // Ensure at least one from each pool
   let password = ''
   for (const pool of pools) {
     const bytes = crypto.getRandomValues(new Uint8Array(1))
     password += pool.charAt(bytes[0] % pool.length)
   }
 
-  // Fill remaining with random from all pools
   const allChars = pools.join('')
   const remaining = clampedLength - password.length
   const limit = 256 - (256 % allChars.length)
@@ -287,7 +282,6 @@ export function generateSecurePassword(options: PasswordOptions = {}): string {
     }
   }
 
-  // Shuffle the password
   return shuffleString(password)
 }
 
