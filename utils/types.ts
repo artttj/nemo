@@ -36,6 +36,7 @@ export interface SitePreferences {
   autoFillMode: 'always' | 'never' | 'ask'
   defaultUsername?: string
   preferredEntryId?: string
+  quickAddDisabled?: boolean
   createdAt: number
   updatedAt: number
 }
@@ -45,6 +46,8 @@ export interface VaultSettings {
   theme: "light" | "dark" | "system"
   lastUnlockedAt?: number
   sitePreferences?: Record<string, SitePreferences>
+  recoveryPhraseVerifiedAt?: number
+  recoveryPhraseReminderDismissedAt?: number
 }
 
 export interface VaultMetadata {
@@ -137,6 +140,10 @@ export type MessageType =
   | "DISABLE_CUSTOM_BACKEND_SYNC"
   | "GET_CUSTOM_BACKEND_SYNC_STATUS"
   | "TRIGGER_CUSTOM_BACKEND_SYNC"
+  | "VERIFY_RECOVERY_PHRASE"
+  | "GET_RECOVERY_STATUS"
+  | "UPDATE_RECOVERY_VERIFIED"
+  | "DISMISS_RECOVERY_REMINDER"
 
 export interface Message<T = unknown> {
   type: MessageType

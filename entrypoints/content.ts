@@ -770,5 +770,181 @@ export default defineContentScript({
         }
       }
     })
+
+    let quickAddBanner: HTMLElement | null = null
+
+    function isSignupForm(form: HTMLFormElement): boolean {
+      const passwordFields = form.querySelectorAll('input[type="password"]')
+      if (passwordFields.length === 0) return false
+
+      const hasConfirmPassword = Array.from(passwordFields).some((field) => {
+        const input = field as HTMLInputElement
+        const autocomplete = input.getAttribute('autocomplete') || ''
+        const name = input.name.toLowerCase()
+        const id = input.id.toLowerCase()
+        return autocomplete === 'new-password' ||
+               name.includes('confirm') ||
+               name.includes('verify') ||
+               id.includes('confirm') ||
+               id.includes('verify')
+      })
+
+      const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]')
+      const hasSignupButton = Array.from(submitButtons).some((btn) => {
+        const text = (btn.textContent || btn.getAttribute('value') || '').toLowerCase()
+        return text.includes('sign up') ||
+               text.includes('signup') ||
+               text.includes('create') ||
+               text.includes('register') ||
+               text.includes('join') ||
+               text.includes('get started')
+      })
+
+      return hasConfirmPassword || hasSignupButton
+    }
+
+    function extractFormCredentials(form: HTMLFormElement): { username?: string; password?: string; title: string } {
+      const passwordFields = form.querySelectorAll('input[type="password"]')
+      let password = ''
+      for (const field of passwordFields) {
+        const input = field as HTMLInputElement
+        if (!input.value) continue
+        if (!password || input.name.toLowerCase().includes('password')) {
+          password = input.value
+        }
+      }
+
+      const username = findUsernameOnPage() || ''
+
+      return {
+        username,
+        password,
+        title: window.location.hostname
+      }
+    }
+
+    function createQuickAddBanner(credentials: { username?: string; password?: string; title: string }) {
+      if (quickAddBanner) {
+        quickAddBanner.remove()
+      }
+
+      const banner = document.createElement('div')
+      banner.id = 'nemo-quick-add-banner'
+      banner.innerHTML = `
+        <div style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 2147483647;
+          background: ${colors.darkBg};
+          border-bottom: 1px solid ${colors.border};
+          padding: 12px 16px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        ">
+          <span style="color: ${colors.textPrimary};">Save this account to Nemo?</span>
+          <div style="display: flex; gap: 8px;">
+            <button id="nemo-quick-add-yes" style="
+              padding: 6px 12px;
+              background: ${colors.green};
+              border: none;
+              border-radius: 6px;
+              color: #000;
+              font-size: 12px;
+              font-weight: 600;
+              cursor: pointer;
+            ">Yes</button>
+            <button id="nemo-quick-add-no" style="
+              padding: 6px 12px;
+              background: transparent;
+              border: 1px solid ${colors.border};
+              border-radius: 6px;
+              color: ${colors.textSecondary};
+              font-size: 12px;
+              cursor: pointer;
+            ">No</button>
+            <button id="nemo-quick-add-never" style="
+              padding: 6px 12px;
+              background: transparent;
+              border: 1px solid ${colors.borderSubtle};
+              border-radius: 6px;
+              color: ${colors.textMuted};
+              font-size: 12px;
+              cursor: pointer;
+            ">Never for this site</button>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(banner)
+      quickAddBanner = banner
+
+      const yesBtn = banner.querySelector('#nemo-quick-add-yes') as HTMLButtonElement
+      const noBtn = banner.querySelector('#nemo-quick-add-no') as HTMLButtonElement
+      const neverBtn = banner.querySelector('#nemo-quick-add-never') as HTMLButtonElement
+
+      yesBtn.addEventListener('click', async () => {
+        await sendBgMessage('ADD_ENTRY', {
+          title: credentials.title,
+          username: credentials.username,
+          password: credentials.password,
+          url: window.location.href
+        })
+        banner.remove()
+        quickAddBanner = null
+      })
+
+      noBtn.addEventListener('click', () => {
+        banner.remove()
+        quickAddBanner = null
+      })
+
+      neverBtn.addEventListener('click', async () => {
+        const hostname = getHostnameFromUrl(window.location.href)
+        if (hostname) {
+          await sendBgMessage('SET_SITE_PREFERENCES', {
+            hostname,
+            preferences: { autoFillMode: 'ask', quickAddDisabled: true }
+          })
+        }
+        banner.remove()
+        quickAddBanner = null
+      })
+
+      setTimeout(() => {
+        if (quickAddBanner === banner) {
+          banner.remove()
+          quickAddBanner = null
+        }
+      }, 10000)
+    }
+
+    document.addEventListener('submit', async (e) => {
+      const form = e.target as HTMLFormElement
+      if (!isSignupForm(form)) return
+
+      const hostname = getHostnameFromUrl(window.location.href)
+      if (hostname) {
+        const prefs = await sendBgMessage('GET_SITE_PREFERENCES', hostname)
+        if (prefs?.quickAddDisabled) return
+      }
+
+      const state = await getCachedVaultState()
+      if (!state?.isUnlocked) return
+
+      const existingEntry = await getCachedEntryByUrl(window.location.href)
+      if (existingEntry) return
+
+      const credentials = extractFormCredentials(form)
+      if (!credentials.password) return
+
+      createQuickAddBanner(credentials)
+    }, true)
   }
 })

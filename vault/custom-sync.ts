@@ -97,14 +97,20 @@ export class CustomBackendAdapter implements VaultStorage {
       method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify({
-        vault,
+        vault: {
+          ciphertext: vault.ciphertext,
+          salt: vault.salt || (metadata as any).salt || "",
+          iv: vault.iv,
+          kdf: vault.kdf || "pbkdf2",
+          version: typeof vault.version === "number" ? vault.version : 1,
+        },
         metadata: {
-          version: metadata.version,
+          version: typeof metadata.version === "string" ? 1 : (metadata.version as number),
           createdAt: metadata.createdAt,
           updatedAt: Date.now(),
-          deviceId: metadata.deviceId,
-          salt: metadata.salt,
-          kdf: metadata.kdf,
+          deviceId: (metadata as any).deviceId || (metadata as any).vaultId || "default",
+          salt: (metadata as any).salt || "",
+          kdf: (metadata as any).kdf || "pbkdf2",
         },
       }),
     });
@@ -146,10 +152,20 @@ export class CustomBackendAdapter implements VaultStorage {
     const startTime = Date.now();
 
     try {
-      const localVault = await this.localAdapter.load();
-      const remoteVault = await this.load();
+      const localRaw = await this.localAdapter.load();
       const localMetadata = await this.localAdapter.loadMetadata();
-      const remoteMetadata = await this.loadMetadata();
+      const remoteResponse = await fetch(`${this.config.baseUrl}/api/vault`, {
+        headers: this.getHeaders(),
+      });
+
+      let remoteVault: any = null;
+      let remoteMetadata: any = null;
+
+      if (remoteResponse.ok && remoteResponse.status !== 404) {
+        const remoteData = await remoteResponse.json();
+        remoteVault = remoteData.vault;
+        remoteMetadata = remoteData.metadata;
+      }
 
       if (!localMetadata) {
         if (remoteVault && remoteMetadata) {
@@ -160,8 +176,16 @@ export class CustomBackendAdapter implements VaultStorage {
         return { success: true, timestamp: Date.now() };
       }
 
+      const localVault: EncryptedVault = {
+        kdf: "pbkdf2",
+        salt: (localMetadata as any).salt ?? "",
+        iv: (localRaw as any)?.iv ?? "",
+        ciphertext: (localRaw as any)?.ciphertext ?? "",
+        version: 1,
+      };
+
       if (!remoteMetadata) {
-        await this.save(localVault!);
+        await this.save(localVault);
         return { success: true, direction: "upload", timestamp: Date.now() };
       }
 
@@ -169,10 +193,10 @@ export class CustomBackendAdapter implements VaultStorage {
       const remoteUpdatedAt = remoteMetadata.updatedAt;
 
       if (localUpdatedAt > remoteUpdatedAt) {
-        await this.save(localVault!);
+        await this.save(localVault);
         return { success: true, direction: "upload", timestamp: Date.now() };
       } else if (remoteUpdatedAt > localUpdatedAt) {
-        await this.localAdapter.save(remoteVault!);
+        await this.localAdapter.save(remoteVault);
         await this.localAdapter.saveMetadata(remoteMetadata);
         return { success: true, direction: "download", timestamp: Date.now() };
       }

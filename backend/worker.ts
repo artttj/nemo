@@ -187,23 +187,15 @@ export default {
 
         await Promise.all([
           env.NEMO_SYNC.prepare(
-            `INSERT INTO vaults (user_id, ciphertext, salt, iv, kdf, version, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(user_id) DO UPDATE SET
-               ciphertext = excluded.ciphertext,
-               salt = excluded.salt,
-               iv = excluded.iv,
-               kdf = excluded.kdf,
-               version = excluded.version,
-               updated_at = excluded.updated_at`
+            `UPDATE vaults SET ciphertext = ?, salt = ?, iv = ?, kdf = ?, version = ?, updated_at = ? WHERE user_id = ?`
           ).bind(
-            userId,
             body.vault.ciphertext,
             body.vault.salt,
             body.vault.iv,
             body.vault.kdf,
             body.vault.version,
-            Date.now()
+            Date.now(),
+            userId
           ).run(),
           env.NEMO_SYNC.prepare(
             `INSERT INTO vault_metadata (user_id, version, created_at, updated_at, device_id, salt, kdf)

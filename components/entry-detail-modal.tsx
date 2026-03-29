@@ -373,6 +373,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                 <TOTPDisplay
                   config={entry.totp}
                   onCopy={(code) => handleCopy(code, 'totp')}
+                  autoCopy
                 />
               </div>
             )}

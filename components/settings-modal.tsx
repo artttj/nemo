@@ -19,6 +19,143 @@ interface SyncStatusData {
   authToken?: string
 }
 
+function RecoveryPhraseSection() {
+  const [status, setStatus] = useState<{
+    lastVerifiedAt?: number
+    needsReminder: boolean
+    loading: boolean
+  }>({ needsReminder: false, loading: true })
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [verifyPhrase, setVerifyPhrase] = useState('')
+  const [verifyError, setVerifyError] = useState('')
+  const [verifySuccess, setVerifySuccess] = useState(false)
+
+  useEffect(() => {
+    loadStatus()
+  }, [])
+
+  const loadStatus = async () => {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS' })
+    if (response.success) {
+      setStatus({
+        lastVerifiedAt: response.data.lastVerifiedAt,
+        needsReminder: response.data.needsReminder,
+        loading: false
+      })
+    }
+  }
+
+  const handleVerify = async () => {
+    setVerifyError('')
+    const response = await chrome.runtime.sendMessage({
+      type: 'VERIFY_RECOVERY_PHRASE',
+      payload: verifyPhrase
+    })
+    if (response.success) {
+      await chrome.runtime.sendMessage({ type: 'UPDATE_RECOVERY_VERIFIED' })
+      setVerifySuccess(true)
+      await loadStatus()
+      setTimeout(() => {
+        setShowVerifyModal(false)
+        setVerifyPhrase('')
+        setVerifySuccess(false)
+      }, 1500)
+    } else {
+      setVerifyError(response.error || 'Invalid recovery phrase')
+    }
+  }
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString()
+  }
+
+  if (status.loading) return null
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Recovery Phrase</h3>
+      </div>
+
+      <div className="ml-[22px]">
+        {status.needsReminder ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--danger)]">Not verified</span>
+            <button
+              onClick={() => setShowVerifyModal(true)}
+              className="text-xs text-[var(--accent)] hover:underline"
+            >
+              Verify now
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span className="text-xs text-[var(--text-secondary)]">
+              Last verified: {status.lastVerifiedAt ? formatDate(status.lastVerifiedAt) : 'Never'}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm bg-[var(--void-elevated)] rounded-xl border border-[var(--border)] p-4">
+            <h4 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">Verify Recovery Phrase</h4>
+            <p className="text-[13px] text-[var(--text-secondary)] mb-4">
+              Enter your 12-word recovery phrase to confirm you have it stored safely.
+            </p>
+
+            {verifySuccess ? (
+              <div className="flex items-center justify-center gap-2 py-4 text-[var(--success)]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="font-medium">Verified successfully</span>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={verifyPhrase}
+                  onChange={(e) => setVerifyPhrase(e.target.value)}
+                  placeholder="Enter your 12 words..."
+                  className="w-full h-24 bg-[var(--surface)] text-[var(--text-primary)] text-[13px] rounded-lg px-3 py-2 border border-[var(--border)] focus:border-[var(--accent)] focus:outline-none transition-colors resize-none mb-3"
+                />
+
+                {verifyError && (
+                  <p className="text-[13px] text-[var(--danger)] mb-3">{verifyError}</p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowVerifyModal(false)}
+                    className="flex-1 py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleVerify}
+                    disabled={!verifyPhrase.trim()}
+                    className="flex-1 py-2 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    Verify
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SettingsModal({
   isOpen,
   onClose,
@@ -81,7 +218,7 @@ export function SettingsModal({
   const autoLockOptions = [
     { value: 1, label: '1 min', hint: 'Most secure' },
     { value: 5, label: '5 min', hint: '' },
-    { value: 15, label: '15 min', hint: 'Recommended' },
+    { value: 15, label: '15 min', hint: '' },
     { value: 30, label: '30 min', hint: '' },
     { value: 60, label: '1 hour', hint: 'Less secure' },
   ]
@@ -715,6 +852,10 @@ export function SettingsModal({
                   </p>
                 </div>
               </div>
+
+              <div className="h-px bg-[var(--border)]" />
+
+              <RecoveryPhraseSection />
             </div>
           )}
 

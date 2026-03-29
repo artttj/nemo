@@ -68,6 +68,8 @@ let vaultState: VaultState = {
 let sessionKey: CryptoKey | null = null
 let autoLockTimeout: ReturnType<typeof setTimeout> | null = null
 
+const AUTO_LOCK_ALARM = 'nemo-auto-lock'
+
 const INITIAL_VAULT: Vault = {
   entries: [],
   settings: { autoLockMinutes: 15, theme: 'dark' }
@@ -122,9 +124,15 @@ function resetAutoLock(): void {
   if (autoLockTimeout) {
     clearTimeout(autoLockTimeout)
   }
+  const ms = getAutoLockMs()
   autoLockTimeout = setTimeout(() => {
     lockVault()
-  }, getAutoLockMs())
+  }, ms)
+  try {
+    chrome.alarms.clear(AUTO_LOCK_ALARM, () => {
+      chrome.alarms.create(AUTO_LOCK_ALARM, { delayInMinutes: ms / 60000 })
+    })
+  } catch {}
 }
 
 export async function getVaultState(): Promise<VaultState> {
@@ -137,6 +145,9 @@ export async function getVaultState(): Promise<VaultState> {
       lastActivity: Date.now()
     }
     await clearSessionState()
+  }
+  if (vaultState.isUnlocked) {
+    resetAutoLock()
   }
   return vaultState
 }
@@ -434,6 +445,27 @@ export async function lockVault(): Promise<MessageResponse> {
   return { success: true }
 }
 
+async function triggerAutoSync(): Promise<void> {
+  try {
+    if (!sessionKey || !vaultState.vault || !vaultState.metadata) return
+    const { getCustomBackendConfig, CustomBackendAdapter } = await import("../vault/custom-sync")
+    const config = await getCustomBackendConfig()
+    if (!config?.enabled || !config.syncOnChange) return
+
+    const adapter = new CustomBackendAdapter(config)
+    const { encrypt } = await import("./crypto")
+    const { ciphertext, iv } = await encrypt(JSON.stringify(vaultState.vault), sessionKey)
+
+    await adapter.save({
+      kdf: "pbkdf2",
+      salt: vaultState.metadata.salt,
+      iv,
+      ciphertext,
+      version: 1,
+    })
+  } catch {}
+}
+
 export async function handleAddEntry(entry: Omit<VaultEntry, "id" | "createdAt" | "updatedAt">): Promise<MessageResponse<VaultEntry>> {
   try {
     if (!sessionKey || !vaultState.vault) {
@@ -447,6 +479,7 @@ export async function handleAddEntry(entry: Omit<VaultEntry, "id" | "createdAt" 
     vaultState.lastActivity = Date.now()
     
     const newEntry = newVault.entries[newVault.entries.length - 1]
+    triggerAutoSync()
     return { success: true, data: newEntry }
   } catch (error) {
     return {
@@ -469,6 +502,7 @@ export async function handleUpdateEntry(id: string, updates: Partial<VaultEntry>
     vaultState.lastActivity = Date.now()
     
     const entry = newVault.entries.find((e) => e.id === id)
+    triggerAutoSync()
     return { success: true, data: entry }
   } catch (error) {
     return {
@@ -490,6 +524,7 @@ export async function handleDeleteEntry(id: string): Promise<MessageResponse> {
     vaultState.vault = newVault
     vaultState.lastActivity = Date.now()
 
+    triggerAutoSync()
     return { success: true }
   } catch (error) {
     return {
@@ -851,7 +886,7 @@ export async function handleTestCustomBackendConnection(config: { baseUrl: strin
 
 export async function handleCustomBackendSync(config?: { baseUrl: string; syncOnChange: boolean }): Promise<MessageResponse> {
   try {
-    const { initializeCustomSync, syncWithCustomBackend, DEFAULT_SYNC_SERVER } = await import("../vault/custom-sync")
+    const { initializeCustomSync, getCustomBackendConfig, CustomBackendAdapter, DEFAULT_SYNC_SERVER } = await import("../vault/custom-sync")
 
     if (config) {
       const baseUrl = config.baseUrl || DEFAULT_SYNC_SERVER
@@ -870,12 +905,28 @@ export async function handleCustomBackendSync(config?: { baseUrl: string; syncOn
       return { success: true, data: { authToken: initResult.authToken } }
     }
 
-    const result = await syncWithCustomBackend()
-
-    if (result.success) {
-      return { success: true, data: result }
+    if (!sessionKey || !vaultState.vault || !vaultState.metadata) {
+      return { success: false, error: "Vault must be unlocked to sync" }
     }
-    return { success: false, error: result.error }
+
+    const syncConfig = await getCustomBackendConfig()
+    if (!syncConfig?.enabled) {
+      return { success: false, error: "Sync not enabled" }
+    }
+
+    const adapter = new CustomBackendAdapter(syncConfig)
+    const { encrypt } = await import("./crypto")
+    const { ciphertext, iv } = await encrypt(JSON.stringify(vaultState.vault), sessionKey)
+
+    await adapter.save({
+      kdf: "pbkdf2",
+      salt: vaultState.metadata.salt,
+      iv,
+      ciphertext,
+      version: 1,
+    })
+
+    return { success: true, data: { direction: "upload", timestamp: Date.now() } }
   } catch (error: any) {
     return {
       success: false,

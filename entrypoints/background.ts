@@ -41,7 +41,11 @@ import {
   handleTestCustomBackendConnection,
   handleCustomBackendSync,
   handleDisableCustomBackendSync,
-  handleCustomBackendSyncStatus
+  handleCustomBackendSyncStatus,
+  verifyRecoveryPhrase,
+  getRecoveryStatus,
+  updateRecoveryVerified,
+  dismissRecoveryReminder
 } from '../utils/vault-ops'
 import { authenticateWithCredential, getStoredCredentialId } from '../utils/auth'
 import { loadVaultMetadata, loadVaultKey } from '../utils/vault'
@@ -67,6 +71,12 @@ export default defineBackground({
     
     chrome.commands?.onCommand?.addListener((command) => {
       if (command === 'lock_vault') {
+        lockVault().catch(console.error)
+      }
+    })
+
+    chrome.alarms?.onAlarm?.addListener((alarm) => {
+      if (alarm.name === 'nemo-auto-lock') {
         lockVault().catch(console.error)
       }
     })
@@ -273,6 +283,18 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
 
     case 'TRIGGER_CUSTOM_BACKEND_SYNC':
       return handleCustomBackendSync()
+
+    case 'VERIFY_RECOVERY_PHRASE':
+      return verifyRecoveryPhrase(message.payload as string)
+
+    case 'GET_RECOVERY_STATUS':
+      return getRecoveryStatus()
+
+    case 'UPDATE_RECOVERY_VERIFIED':
+      return updateRecoveryVerified()
+
+    case 'DISMISS_RECOVERY_REMINDER':
+      return dismissRecoveryReminder()
 
     default:
       return { success: false, error: 'Unknown message type' }

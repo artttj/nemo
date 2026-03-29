@@ -36,8 +36,6 @@ export function LockedView({
   const [showPin, setShowPin] = useState(false)
   const [recoveryPhrase, setRecoveryPhrase] = useState('')
   const [pin, setPin] = useState('')
-  const [masterKeyInput, setMasterKeyInput] = useState('')
-  const [showMasterKey, setShowMasterKey] = useState(vaultExists && !hasCredential)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const biometricAvailable = useBiometricType()
 
@@ -136,24 +134,6 @@ export function LockedView({
   const handlePinKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handlePinUnlock()
-    }
-  }
-
-  const handleMasterKeyUnlock = async () => {
-    if (!masterKeyInput.trim()) {
-      setError('Enter your master key')
-      return
-    }
-    setLoading('recovery')
-    setError(null)
-    setIsUnlocking(true)
-    try {
-      await onRecoveryUnlock?.(masterKeyInput.trim())
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid master key')
-      setIsUnlocking(false)
-    } finally {
-      setLoading(null)
     }
   }
 
@@ -352,7 +332,6 @@ export function LockedView({
 
   const getBiometricLabel = () => {
     if (showFirstTime) return 'Create vault'
-    if (!hasCredential) return 'Unlock with master key'
     if (biometricAvailable === 'touchid') return 'Unlock with Touch ID'
     if (biometricAvailable === 'hello') return 'Unlock with Windows Hello'
     return 'Unlock vault'
@@ -360,7 +339,6 @@ export function LockedView({
 
   const getMainAction = () => {
     if (showFirstTime) return handleCreate
-    if (!hasCredential) return () => setShowMasterKey(true)
     return handleUnlock
   }
 
@@ -419,68 +397,17 @@ export function LockedView({
         )}
 
         <div className="space-y-2">
-          {(!showMasterKey || hasCredential) && (
-            <button
-              onClick={getMainAction()}
-              disabled={loading !== null}
-              className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading === 'create' || loading === 'unlock'
-                ? 'Verifying...'
-                : getBiometricLabel()}
-            </button>
-          )}
+          <button
+            onClick={getMainAction()}
+            disabled={loading !== null}
+            className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading === 'create' || loading === 'unlock'
+              ? 'Verifying...'
+              : getBiometricLabel()}
+          </button>
 
-          {!showFirstTime && hasCredential && !showMasterKey && (
-            <button
-              onClick={() => setShowMasterKey(true)}
-              disabled={loading !== null}
-              className="w-full nemo-button-secondary py-2.5 text-[14px] font-medium"
-            >
-              Use master key
-            </button>
-          )}
-
-          {!showFirstTime && showMasterKey && (
-            <div className="space-y-2 mt-1">
-              <textarea
-                value={masterKeyInput}
-                onChange={(e) => {
-                  setMasterKeyInput(e.target.value)
-                  if (error) setError(null)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleMasterKeyUnlock()
-                  }
-                }}
-                placeholder="Enter your 12-word master key..."
-                rows={3}
-                autoFocus
-                className="w-full nemo-input px-3 py-2.5 text-sm resize-none"
-              />
-              <div className="flex gap-2">
-                {hasCredential && (
-                  <button
-                    onClick={() => { setShowMasterKey(false); setMasterKeyInput(''); setError(null); }}
-                    className="flex-1 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                )}
-                <button
-                  onClick={handleMasterKeyUnlock}
-                  disabled={loading !== null || !masterKeyInput.trim()}
-                  className={`${hasCredential ? 'flex-1' : 'w-full'} nemo-button-primary py-2.5 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {loading === 'recovery' ? 'Unlocking...' : 'Unlock'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {hasPinSetup && !showFirstTime && !showMasterKey && (
+          {hasPinSetup && !showFirstTime && (
             <button
               onClick={() => setShowPin(true)}
               disabled={loading !== null}

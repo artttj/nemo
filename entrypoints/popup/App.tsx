@@ -1,6 +1,6 @@
 
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { VaultEntry, VaultRegistry } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
 import { getDomain } from '~/utils/url'
@@ -64,6 +64,8 @@ export default function App() {
   const [vaultRegistry, setVaultRegistry] = useState<VaultRegistry | null>(null)
   const [showVaultSetup, setShowVaultSetup] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState<number>(-1)
+  const [showRecoveryReminder, setShowRecoveryReminder] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadStateWithRetry()
@@ -96,6 +98,26 @@ export default function App() {
     return () => {
       if (pollTimeout) clearTimeout(pollTimeout)
     }
+  }, [state.isUnlocked])
+
+  useEffect(() => {
+    if (!state.isUnlocked) {
+      setShowRecoveryReminder(false)
+      return
+    }
+
+    const checkRecoveryStatus = async () => {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_RECOVERY_STATUS' })
+      if (response.success && response.data.needsReminder) {
+        const dismissedAt = response.data.dismissedAt
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+        if (!dismissedAt || dismissedAt < oneDayAgo) {
+          setShowRecoveryReminder(true)
+        }
+      }
+    }
+
+    checkRecoveryStatus()
   }, [state.isUnlocked])
 
   const loadStateWithRetry = async (retries = 3) => {
@@ -373,14 +395,43 @@ export default function App() {
       .sort((a: any, b: any) => b.updatedAt - a.updatedAt)
   }, [allEntries, searchQuery, activeFilter])
 
-  
+
   useEffect(() => {
     if (!state.isUnlocked) return
-    if (showAddModal || showSettings || viewingEntry) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const isMeta = e.metaKey || e.ctrlKey
+
+      if (isMeta && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      if (e.key === 'Escape') {
+        if (showAddModal) {
+          setShowAddModal(false)
+          setEditingEntry(null)
+          return
+        }
+        if (showSettings) {
+          setShowSettings(false)
+          return
+        }
+        if (viewingEntry) {
+          setViewingEntry(null)
+          return
+        }
+        if (document.activeElement === searchInputRef.current) {
+          searchInputRef.current?.blur()
+        }
+        setSelectedIndex(-1)
+        return
+      }
+
+      if (showAddModal || showSettings || viewingEntry) return
+
       const entryCount = filteredEntries.length
-      if (entryCount === 0) return
 
       switch (e.key) {
         case 'ArrowDown':
@@ -392,6 +443,19 @@ export default function App() {
           setSelectedIndex((prev) => prev > 0 ? prev - 1 : entryCount - 1)
           break
         case 'Enter':
+          if (document.activeElement === searchInputRef.current) {
+            if (entryCount > 0) {
+              e.preventDefault()
+              const entry = filteredEntries[0]
+              if (entry?.password) {
+                navigator.clipboard.writeText(entry.password)
+                setSearchQuery('')
+                setSelectedIndex(-1)
+                searchInputRef.current?.blur()
+              }
+            }
+            return
+          }
           if (selectedIndex >= 0 && selectedIndex < entryCount) {
             e.preventDefault()
             const entry = filteredEntries[selectedIndex]
@@ -406,7 +470,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.isUnlocked, filteredEntries, selectedIndex, showAddModal, showSettings, viewingEntry])
+  }, [state.isUnlocked, filteredEntries, selectedIndex, showAddModal, showSettings, viewingEntry, searchQuery])
 
   
   useEffect(() => {
@@ -443,6 +507,11 @@ export default function App() {
     }
     return response
   }, [])
+
+  const handleDismissRecoveryReminder = async () => {
+    await chrome.runtime.sendMessage({ type: 'DISMISS_RECOVERY_REMINDER' })
+    setShowRecoveryReminder(false)
+  }
 
   if (loading) {
     return (
@@ -502,6 +571,36 @@ export default function App() {
 
   return (
     <div className="w-[400px] min-h-[500px] flex flex-col bg-[var(--void)]">
+      {showRecoveryReminder && (
+        <div className="mx-4 mt-3 p-3 bg-[var(--accent-bg)] rounded-lg border border-[var(--accent)] border-opacity-30">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Recovery phrase not verified</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Verify it now to ensure you can recover your vault.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-[var(--void)] rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Verify
+              </button>
+              <button
+                onClick={handleDismissRecoveryReminder}
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                title="Dismiss"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="px-4 py-3 nemo-divider-top">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -544,6 +643,7 @@ export default function App() {
             <path d="m21 21-4.3-4.3" />
           </svg>
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

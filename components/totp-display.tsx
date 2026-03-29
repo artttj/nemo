@@ -7,22 +7,29 @@ interface TOTPDisplayProps {
   config: TOTPConfig
   onCopy?: (code: string) => void
   compact?: boolean
+  autoCopy?: boolean
 }
 
-export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProps) {
+export function TOTPDisplay({ config, onCopy, compact = false, autoCopy = false }: TOTPDisplayProps) {
   const [code, setCode] = useState<TOTPCode | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [remainingSeconds, setRemainingSeconds] = useState(30)
   const [progress, setProgress] = useState(1)
   const lastGeneratedRef = useRef<number>(0)
+  const autoCopiedRef = useRef<boolean>(false)
   const period = config.period ?? 30
 
   const updateCode = useCallback(async () => {
     try {
       const newCode = await generateTOTP(config)
       setCode(prev => {
-        
+
         if (prev?.code !== newCode.code) {
+          if (autoCopy && !autoCopiedRef.current && newCode.remainingSeconds > 5) {
+            navigator.clipboard.writeText(newCode.code)
+            onCopy?.(newCode.code)
+            autoCopiedRef.current = true
+          }
           return newCode
         }
         return prev
@@ -33,7 +40,7 @@ export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProp
     } catch {
       setIsLoading(false)
     }
-  }, [config])
+  }, [config, autoCopy, onCopy])
 
   useEffect(() => {
     
