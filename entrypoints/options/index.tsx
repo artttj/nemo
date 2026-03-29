@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState } from 'react'
 import '~/style.css'
 import { Button } from '~/components/ui'
@@ -95,11 +100,11 @@ function Options() {
             Export an encrypted backup of your vault or restore from a previous backup. Data is protected with AES-256-GCM encryption.
           </p>
           <div className='flex gap-3'>
-            <Button variant='secondary' onClick={handleExport} disabled={exporting}>
+            <Button variant='ghost' onClick={handleExport} disabled={exporting}>
               {exporting ? 'Exporting...' : 'Export Vault'}
             </Button>
             <label className='flex items-center cursor-pointer'>
-              <Button variant='secondary' disabled={importing}>
+              <Button variant='ghost' disabled={importing}>
                 {importing ? 'Importing...' : 'Import Backup'}
               </Button>
               <input

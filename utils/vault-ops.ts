@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type {
   Message,
   MessageResponse,
@@ -76,7 +81,11 @@ const SESSION_STATE_NAME = 'nemo_vault_state'
 async function persistVaultState(): Promise<void> {
   try {
     await chrome.storage.session.set({
-      [SESSION_STATE_NAME]: vaultState
+      [SESSION_STATE_NAME]: {
+        isUnlocked: vaultState.isUnlocked,
+        lastActivity: vaultState.lastActivity,
+        activeVaultId: vaultState.metadata?.vaultId ?? null
+      }
     })
   } catch {
   }
@@ -86,7 +95,9 @@ async function restoreVaultState(): Promise<void> {
   try {
     const stored = await chrome.storage.session.get(SESSION_STATE_NAME)
     if (stored[SESSION_STATE_NAME]) {
-      vaultState = stored[SESSION_STATE_NAME]
+      const { isUnlocked, lastActivity } = stored[SESSION_STATE_NAME]
+      vaultState.isUnlocked = isUnlocked
+      vaultState.lastActivity = lastActivity ?? Date.now()
     }
   } catch {
   }

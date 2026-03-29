@@ -1,4 +1,7 @@
-declare(strict_types=1);
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 import type { EncryptedVault, VaultData, VaultMetadata } from "./types";
 
@@ -51,7 +54,7 @@ export async function deriveKeyFromPassword(
   return await crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: saltBuffer,
+      salt: saltBuffer.buffer as ArrayBuffer,
       iterations: params.iterations ?? PBKDF2_ITERATIONS,
       hash: "SHA-256"
     },
@@ -146,7 +149,11 @@ export async function decryptVault(encrypted: EncryptedVault, key: CryptoKey): P
 }
 
 export function bufferToBase64(buffer: Uint8Array): string {
-  return btoa(String.fromCharCode(...buffer));
+  let binary = '';
+  for (let i = 0; i < buffer.length; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return btoa(binary);
 }
 
 export function base64ToBuffer(base64: string): Uint8Array {

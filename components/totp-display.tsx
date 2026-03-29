@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { generateTOTP, type TOTPConfig, type TOTPCode } from '~/utils/totp'
 
@@ -129,7 +134,7 @@ export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProp
                 cy="6"
                 r="5"
                 fill="none"
-                stroke="var(--border)]"
+                stroke="var(--border)"
                 strokeWidth="1.5"
               />
               <circle

@@ -4,10 +4,21 @@
   <meta charset="UTF-8">
   <title>Nemo - Authentication</title>
   <style>
+    :root {
+      --void-dark: #1A1A18;
+      --void-dark-elevated: #2C2C28;
+      --text-dark-primary: #FFFFFF;
+      --text-dark-secondary: rgba(255, 255, 255, 0.7);
+      --text-dark-tertiary: rgba(255, 255, 255, 0.5);
+      --border-dark: rgba(255, 255, 255, 0.08);
+      --accent: #1A1A18;
+      --accent-text: #FFFFFF;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f172a;
-      color: #f1f5f9;
+      background: var(--void-dark);
+      color: var(--text-dark-primary);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -17,15 +28,19 @@
     .container {
       text-align: center;
       padding: 2rem;
+      max-width: 400px;
     }
     .spinner {
       width: 40px;
       height: 40px;
-      border: 3px solid #1e293b;
-      border-top-color: #6366f1;
+      border: 3px solid var(--border-dark);
+      border-top-color: var(--text-dark-primary);
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin: 0 auto 1rem;
+    }
+    .spinner.hidden {
+      display: none;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -34,15 +49,41 @@
       color: #ef4444;
       margin-top: 1rem;
     }
+    .success {
+      color: #22c55e;
+      margin-top: 0.5rem;
+    }
+    .hint {
+      color: var(--text-dark-tertiary);
+      font-size: 14px;
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1rem;
+    }
+    .icon svg {
+      width: 100%;
+      height: 100%;
+    }
   </style>
-  <script type="module" crossorigin src="/chunks/webauthn-CUaNetOY.js"></script>
-  <link rel="modulepreload" crossorigin href="/chunks/_virtual_wxt-html-plugins-DPbbfBKe.js">
+  <script type="module" crossorigin src="/chunks/webauthn-0fnH5_cp.js"></script>
+  <link rel="modulepreload" crossorigin href="/chunks/crypto-BclyM5U0.js">
 </head>
 <body>
   <div class="container">
-    <div class="spinner"></div>
+    <div id="spinner" class="spinner"></div>
+    <div id="icon" class="icon" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12l2.5 2.5L16 9" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </div>
     <p id="status">Authenticating...</p>
     <p id="error" class="error" style="display:none;"></p>
+    <p id="hint" class="hint" style="display:none;"></p>
   </div>
 </body>
 </html>

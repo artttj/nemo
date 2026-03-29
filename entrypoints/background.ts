@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { defineBackground } from 'wxt/sandbox'
 import type { Message, MessageResponse } from '../utils/types'
 import {
@@ -190,7 +195,13 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
       if (!autofillState.isUnlocked || !autofillState.vault) {
         return { success: false, error: 'Vault is locked' }
       }
-      return { success: true, data: autofillState.vault.entries }
+      const tabUrl = sender?.tab?.url || sender?.url || ''
+      if (!tabUrl) {
+        return { success: true, data: [] }
+      }
+      const { getEntriesByUrl } = await import('../utils/vault')
+      const filtered = getEntriesByUrl(autofillState.vault, tabUrl)
+      return { success: true, data: filtered }
     }
 
     case 'SEARCH_ENTRIES':

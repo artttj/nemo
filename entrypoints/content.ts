@@ -1,17 +1,29 @@
-import { defineContentScript } from 'wxt/sandbox'
-
 /**
- * Content script for Nemo Password Manager.
- * Provides inline auto-fill and password generation functionality.
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-// Generator settings (persisted per session)
+import { defineContentScript } from 'wxt/sandbox'
+
 const generatorDefaults = {
   length: 20,
   uppercase: true,
   lowercase: true,
   numbers: true,
   symbols: true
+}
+
+const USERNAME_KEYWORDS = ['user', 'email', 'login']
+
+function isUsernameField(field: HTMLInputElement): boolean {
+  if (field.type === 'email') return true
+  const autocomplete = field.getAttribute('autocomplete') || ''
+  const name = field.name.toLowerCase()
+  const id = field.id.toLowerCase()
+  const placeholder = (field.placeholder || '').toLowerCase()
+  return USERNAME_KEYWORDS.some(k =>
+    autocomplete.includes(k) || name.includes(k) || id.includes(k) || placeholder.includes(k)
+  )
 }
 
 export default defineContentScript({
@@ -22,9 +34,11 @@ export default defineContentScript({
     let overlayElement: HTMLElement | null = null
     let nemoButton: HTMLElement | null = null
     let generatorOverlay: HTMLElement | null = null
-    let isVisible = false
-    let isGeneratorVisible = false
     let currentField: HTMLInputElement | null = null
+    let positionRafId = 0
+    let vaultStateCache: { data: any; timestamp: number } | null = null
+    let entryCache: { url: string; data: any; timestamp: number } | null = null
+    const CACHE_TTL = 5000
 
     const colors = {
       darkBg: '#1A1A1A',
@@ -35,32 +49,40 @@ export default defineContentScript({
       textSecondary: '#737373',
       textMuted: '#525252',
       gold: '#C98700',
+      green: '#00FF88',
       border: 'rgba(255,255,255,0.1)',
       borderSubtle: 'rgba(255,255,255,0.05)'
     }
 
-    async function queryVaultForUrl(url: string) {
+    async function sendBgMessage(type: string, payload?: unknown, fallback: any = null) {
       try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'GET_ENTRY_BY_URL',
-          payload: url
-        })
-        return response.success ? response.data : null
+        const response = await chrome.runtime.sendMessage(
+          payload !== undefined ? { type, payload } : { type }
+        )
+        return response.success ? response.data : fallback
       } catch {
-        return null
+        return fallback
       }
     }
 
-    async function getSitePreferences(hostname: string) {
-      try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'GET_SITE_PREFERENCES',
-          payload: hostname
-        })
-        return response.success ? response.data : null
-      } catch {
-        return null
+    async function getCachedVaultState() {
+      const now = Date.now()
+      if (vaultStateCache && (now - vaultStateCache.timestamp) < CACHE_TTL) {
+        return vaultStateCache.data
       }
+      const state = await sendBgMessage('GET_VAULT_STATE')
+      vaultStateCache = { data: state, timestamp: now }
+      return state
+    }
+
+    async function getCachedEntryByUrl(url: string) {
+      const now = Date.now()
+      if (entryCache && entryCache.url === url && (now - entryCache.timestamp) < CACHE_TTL) {
+        return entryCache.data
+      }
+      const entry = await sendBgMessage('GET_ENTRY_BY_URL', url)
+      entryCache = { url, data: entry, timestamp: now }
+      return entry
     }
 
     function getHostnameFromUrl(url: string): string {
@@ -71,34 +93,9 @@ export default defineContentScript({
       }
     }
 
-    async function getVaultState() {
-      try {
-        const response = await chrome.runtime.sendMessage({ type: 'GET_VAULT_STATE' })
-        return response.success ? response.data : null
-      } catch {
-        return null
-      }
-    }
-
-    async function getAllEntries() {
-      try {
-        const response = await chrome.runtime.sendMessage({ type: 'GET_ENTRIES_FOR_AUTOFILL' })
-        return response.success ? response.data : []
-      } catch {
-        return []
-      }
-    }
-
-    async function addEntryToVault(entry: { title: string; username?: string; password: string; url: string }) {
-      try {
-        const response = await chrome.runtime.sendMessage({
-          type: 'ADD_ENTRY',
-          payload: entry
-        })
-        return response.success ? response.data : null
-      } catch {
-        return null
-      }
+    function simulateInput(field: HTMLInputElement) {
+      field.dispatchEvent(new Event('input', { bubbles: true }))
+      field.dispatchEvent(new Event('change', { bubbles: true }))
     }
 
     function generatePassword(options: {
@@ -256,7 +253,6 @@ export default defineContentScript({
 
       document.body.appendChild(overlayElement)
       positionOverlay()
-      isVisible = true
     }
 
     function escapeHtml(text: string): string {
@@ -299,7 +295,6 @@ export default defineContentScript({
         overlayElement.remove()
         overlayElement = null
       }
-      isVisible = false
     }
 
     function hideGeneratorOverlay() {
@@ -307,7 +302,6 @@ export default defineContentScript({
         generatorOverlay.remove()
         generatorOverlay = null
       }
-      isGeneratorVisible = false
     }
 
     function createGeneratorOverlay(field: HTMLInputElement) {
@@ -321,24 +315,24 @@ export default defineContentScript({
         <div id="nemo-generator-panel" style="
           position: fixed;
           z-index: 2147483647;
-          background: #1A1A1A;
-          border: 1px solid rgba(255,255,255,0.1);
+          background: ${colors.darkBg};
+          border: 1px solid ${colors.border};
           border-radius: 12px;
           padding: 16px;
           min-width: 280px;
           box-shadow: 0 8px 32px rgba(0,0,0,0.4);
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           font-size: 13px;
-          color: #E0E0E0;
+          color: ${colors.textPrimary};
         ">
           <div style="margin-bottom: 12px; font-weight: 600;">Generate Password</div>
 
           <div style="margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span style="color: #888;">Length: <span id="nemo-gen-length-val">${settings.length}</span></span>
+              <span style="color: ${colors.textSecondary};">Length: <span id="nemo-gen-length-val">${settings.length}</span></span>
             </div>
             <input type="range" id="nemo-gen-length" min="8" max="64" value="${settings.length}"
-              style="width: 100%; accent-color: #00FF88;">
+              style="width: 100%; accent-color: ${colors.green};">
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
@@ -370,7 +364,7 @@ export default defineContentScript({
             word-break: break-all;
             min-height: 20px;
             text-align: center;
-            color: #00FF88;
+            color: ${colors.green};
           ">
             Click generate
           </div>
@@ -379,10 +373,10 @@ export default defineContentScript({
             <button id="nemo-gen-btn" style="
               flex: 1;
               padding: 8px 12px;
-              background: #333;
-              border: 1px solid rgba(255,255,255,0.1);
+              background: ${colors.cardBg};
+              border: 1px solid ${colors.border};
               border-radius: 6px;
-              color: #E0E0E0;
+              color: ${colors.textPrimary};
               cursor: pointer;
               font-size: 12px;
             ">
@@ -391,7 +385,7 @@ export default defineContentScript({
             <button id="nemo-gen-fill" style="
               flex: 1;
               padding: 8px 12px;
-              background: #00FF88;
+              background: ${colors.green};
               border: none;
               border-radius: 6px;
               color: #000;
@@ -412,7 +406,6 @@ export default defineContentScript({
       panel.style.top = `${rect.bottom + 8 + window.scrollY}px`
       panel.style.left = `${rect.left + window.scrollX}px`
 
-      // Event handlers
       const lengthSlider = panel.querySelector('#nemo-gen-length') as HTMLInputElement
       const lengthVal = panel.querySelector('#nemo-gen-length-val') as HTMLSpanElement
       const preview = panel.querySelector('#nemo-gen-preview') as HTMLDivElement
@@ -438,21 +431,18 @@ export default defineContentScript({
         }
         currentPassword = generatePassword(settings)
         preview.textContent = currentPassword
-        preview.style.color = '#00FF88'
+        preview.style.color = colors.green
         fillBtn.disabled = false
       }
 
       const fill = async () => {
         if (!currentPassword) return
         field.value = currentPassword
-        field.dispatchEvent(new Event('input', { bubbles: true }))
-        field.dispatchEvent(new Event('change', { bubbles: true }))
+        simulateInput(field)
 
-        // Auto-save to vault
-        const hostname = window.location.hostname
         const username = findUsernameOnPage()
-        await addEntryToVault({
-          title: hostname,
+        await sendBgMessage('ADD_ENTRY', {
+          title: window.location.hostname,
           username: username || undefined,
           password: currentPassword,
           url: window.location.href
@@ -461,7 +451,6 @@ export default defineContentScript({
         hideGeneratorOverlay()
       }
 
-      // Event listeners
       lengthSlider.addEventListener('input', () => {
         lengthVal.textContent = lengthSlider.value
       })
@@ -473,13 +462,11 @@ export default defineContentScript({
       genBtn.addEventListener('click', generate)
       fillBtn.addEventListener('click', fill)
 
-      // Generate initial password
       generate()
-      isGeneratorVisible = true
     }
 
     function findUsernameOnPage(): string | null {
-      const usernameSelectors = [
+      const selectors = [
         'input[type="email"]',
         'input[name*="user" i]',
         'input[name*="email" i]',
@@ -487,7 +474,7 @@ export default defineContentScript({
         'input[id*="email" i]'
       ]
 
-      for (const selector of usernameSelectors) {
+      for (const selector of selectors) {
         const input = document.querySelector(selector) as HTMLInputElement
         if (input?.value) return input.value
       }
@@ -495,45 +482,40 @@ export default defineContentScript({
       return null
     }
 
-    function fillPasswordFields(username: string, password: string) {
-      const passwordInputs = document.querySelectorAll('input[type="password"]')
-      const textInputs = document.querySelectorAll('input[type="text"], input[type="email"]')
+    function fillPasswordFields(username: string, password: string, scopeField?: HTMLInputElement) {
+      const scope = scopeField?.closest('form') || document
 
-      // Find username field (usually before password field)
+      const textInputs = scope.querySelectorAll('input[type="text"], input[type="email"]')
       textInputs.forEach((input) => {
-        if (input instanceof HTMLInputElement) {
-          const autocomplete = input.getAttribute('autocomplete') || ''
-          const name = input.name.toLowerCase()
-          const id = input.id.toLowerCase()
-          const placeholder = (input.placeholder || '').toLowerCase()
-
-          if (
-            autocomplete.includes('username') ||
-            autocomplete.includes('email') ||
-            name.includes('user') ||
-            name.includes('email') ||
-            name.includes('login') ||
-            id.includes('user') ||
-            id.includes('email') ||
-            id.includes('login') ||
-            placeholder.includes('username') ||
-            placeholder.includes('email')
-          ) {
-            input.value = username
-            input.dispatchEvent(new Event('input', { bubbles: true }))
-            input.dispatchEvent(new Event('change', { bubbles: true }))
-          }
+        if (input instanceof HTMLInputElement && isUsernameField(input)) {
+          input.value = username
+          simulateInput(input)
         }
       })
 
-      // Fill all password fields
+      const passwordInputs = scope.querySelectorAll('input[type="password"]')
       passwordInputs.forEach((input) => {
         if (input instanceof HTMLInputElement) {
           input.value = password
-          input.dispatchEvent(new Event('input', { bubbles: true }))
-          input.dispatchEvent(new Event('change', { bubbles: true }))
+          simulateInput(input)
         }
       })
+    }
+
+    function addHoverEffect(el: HTMLElement, normalBg: string, hoverBg: string) {
+      el.addEventListener('mouseenter', () => {
+        el.style.background = hoverBg
+        el.style.transform = 'scale(1.05)'
+      })
+      el.addEventListener('mouseleave', () => {
+        el.style.background = normalBg
+        el.style.transform = 'scale(1)'
+      })
+    }
+
+    function schedulePositionUpdate(fn: () => void) {
+      cancelAnimationFrame(positionRafId)
+      positionRafId = requestAnimationFrame(fn)
     }
 
     function createNemoButton(field: HTMLInputElement) {
@@ -541,7 +523,6 @@ export default defineContentScript({
 
       field.dataset.nemoButton = 'true'
 
-      // Main Nemo button
       const button = document.createElement('button')
       button.type = 'button'
       button.dataset.nemoAction = 'fill'
@@ -555,7 +536,7 @@ export default defineContentScript({
         position: absolute;
         width: 28px;
         height: 28px;
-        background: #1A1A1A;
+        background: ${colors.darkBg};
         border: none;
         border-radius: 6px;
         cursor: pointer;
@@ -571,7 +552,6 @@ export default defineContentScript({
         pointer-events: auto;
       `
 
-      // Generator button
       const genButton = document.createElement('button')
       genButton.type = 'button'
       genButton.dataset.nemoAction = 'generate'
@@ -587,14 +567,14 @@ export default defineContentScript({
         position: absolute;
         width: 28px;
         height: 28px;
-        background: #333;
+        background: ${colors.cardBg};
         border: none;
         border-radius: 6px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #00FF88;
+        color: ${colors.green};
         padding: 0;
         z-index: 2147483646;
         transition: all 0.2s;
@@ -603,58 +583,32 @@ export default defineContentScript({
         pointer-events: none;
       `
 
-      // Position buttons relative to the field
       const updatePositions = () => {
         const rect = field.getBoundingClientRect()
         const scrollX = window.scrollX
         const scrollY = window.scrollY
 
-        // Right edge, vertically centered
         button.style.left = `${rect.right - 36 + scrollX}px`
         button.style.top = `${rect.top + (rect.height - 28) / 2 + scrollY}px`
 
-        // Left of main button
         genButton.style.left = `${rect.right - 72 + scrollX}px`
         genButton.style.top = `${rect.top + (rect.height - 28) / 2 + scrollY}px`
       }
 
-      // Initial position
+      const debouncedUpdate = () => schedulePositionUpdate(updatePositions)
+
       updatePositions()
 
-      // Update on scroll and resize
-      window.addEventListener('scroll', updatePositions, { passive: true })
-      window.addEventListener('resize', updatePositions)
+      window.addEventListener('scroll', debouncedUpdate, { passive: true })
+      window.addEventListener('resize', debouncedUpdate)
 
-      // Update when field moves (for SPAs with animations)
-      const positionObserver = new MutationObserver(updatePositions)
-      positionObserver.observe(document.body, { attributes: true, childList: true, subtree: true })
-
-      // Add to document body (not field parent) to avoid layout issues
+      // Appended to body to avoid breaking field layout in forms
       document.body.appendChild(button)
       document.body.appendChild(genButton)
 
-      // Hover effects
-      button.addEventListener('mouseenter', () => {
-        button.style.background = '#333333'
-        button.style.transform = 'scale(1.05)'
-      })
+      addHoverEffect(button, colors.darkBg, colors.cardBg)
+      addHoverEffect(genButton, colors.cardBg, '#444')
 
-      button.addEventListener('mouseleave', () => {
-        button.style.background = '#1A1A1A'
-        button.style.transform = 'scale(1)'
-      })
-
-      genButton.addEventListener('mouseenter', () => {
-        genButton.style.background = '#444'
-        genButton.style.transform = 'scale(1.05)'
-      })
-
-      genButton.addEventListener('mouseleave', () => {
-        genButton.style.background = '#333'
-        genButton.style.transform = 'scale(1)'
-      })
-
-      // Click handlers - don't prevent default on the field itself
       button.addEventListener('click', async (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -662,20 +616,20 @@ export default defineContentScript({
         currentField = field
         hideGeneratorOverlay()
 
-        const state = await getVaultState()
+        const state = await sendBgMessage('GET_VAULT_STATE')
         if (!state?.isUnlocked) {
           chrome.runtime.sendMessage({ type: 'OPEN_POPUP' })
           return
         }
 
-        if (isVisible) {
+        if (overlayElement) {
           hideOverlay()
           return
         }
 
-        const entries = await getAllEntries()
+        const entries = await sendBgMessage('GET_ENTRIES_FOR_AUTOFILL', undefined, [])
         createOverlay(entries, (entry) => {
-          fillPasswordFields(entry.username, entry.password)
+          fillPasswordFields(entry.username, entry.password, field)
         })
       })
 
@@ -685,13 +639,13 @@ export default defineContentScript({
 
         hideOverlay()
 
-        const state = await getVaultState()
+        const state = await sendBgMessage('GET_VAULT_STATE')
         if (!state?.isUnlocked) {
           chrome.runtime.sendMessage({ type: 'OPEN_POPUP' })
           return
         }
 
-        if (isGeneratorVisible) {
+        if (generatorOverlay) {
           hideGeneratorOverlay()
           return
         }
@@ -700,10 +654,9 @@ export default defineContentScript({
         createGeneratorOverlay(field)
       })
 
-      // Show/hide generator button on field focus
       field.addEventListener('focus', () => {
         currentField = field
-        updatePositions()
+        debouncedUpdate()
         genButton.style.opacity = '1'
         genButton.style.pointerEvents = 'auto'
       })
@@ -717,27 +670,14 @@ export default defineContentScript({
         }, 200)
       })
 
-      // Show buttons when hovering near the field
       const showButtons = () => {
-        updatePositions()
+        debouncedUpdate()
         button.style.opacity = '1'
         button.style.pointerEvents = 'auto'
         genButton.style.opacity = field === document.activeElement ? '1' : '0'
         genButton.style.pointerEvents = field === document.activeElement ? 'auto' : 'none'
       }
 
-      const hideButtons = () => {
-        setTimeout(() => {
-          if (!genButton.matches(':hover') && !button.matches(':hover') && field !== document.activeElement) {
-            button.style.opacity = '0'
-            button.style.pointerEvents = 'none'
-            genButton.style.opacity = '0'
-            genButton.style.pointerEvents = 'none'
-          }
-        }, 200)
-      }
-
-      // Track field visibility and position
       const fieldObserver = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -754,75 +694,56 @@ export default defineContentScript({
 
       fieldObserver.observe(field)
 
-      // Cleanup on field removal
-      const cleanupObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          mutation.removedNodes.forEach((node) => {
-            if (node === field || (node instanceof Element && node.contains(field))) {
-              button.remove()
-              genButton.remove()
-              cleanupObserver.disconnect()
-              positionObserver.disconnect()
-              fieldObserver.disconnect()
-              window.removeEventListener('scroll', updatePositions)
-              window.removeEventListener('resize', updatePositions)
-            }
-          })
-        })
-      })
-
-      if (field.parentElement) {
-        cleanupObserver.observe(field.parentElement, { childList: true })
+      const cleanup = () => {
+        button.remove()
+        genButton.remove()
+        fieldObserver.disconnect()
+        window.removeEventListener('scroll', debouncedUpdate)
+        window.removeEventListener('resize', debouncedUpdate)
       }
 
-      // Initially show
+      // Watches for field removal from DOM at any ancestor level
+      const cleanupObserver = new MutationObserver(() => {
+        if (!field.isConnected) {
+          cleanup()
+          cleanupObserver.disconnect()
+        }
+      })
+
+      cleanupObserver.observe(document.body, { childList: true, subtree: true })
+
       showButtons()
     }
 
+    let detectTimeout: ReturnType<typeof setTimeout> | null = null
+
     function detectAndAttachButtons() {
-      // Find password fields
       const passwordFields = document.querySelectorAll('input[type="password"]:not([data-nemo-button])')
-      
       passwordFields.forEach((field) => {
         if (field instanceof HTMLInputElement) {
           createNemoButton(field)
         }
       })
 
-      // Find username fields near password fields
-      const allFields = document.querySelectorAll('input[type="text"], input[type="email"]')
+      const allFields = document.querySelectorAll('input[type="text"]:not([data-nemo-button]), input[type="email"]:not([data-nemo-button])')
       allFields.forEach((field) => {
-        if (field instanceof HTMLInputElement && !field.dataset.nemoButton) {
-          const autocomplete = field.getAttribute('autocomplete') || ''
-          const name = field.name.toLowerCase()
-          const id = field.id.toLowerCase()
-
-          if (
-            autocomplete.includes('username') ||
-            autocomplete.includes('email') ||
-            name.includes('user') ||
-            name.includes('email') ||
-            name.includes('login') ||
-            id.includes('user') ||
-            id.includes('email') ||
-            id.includes('login')
-          ) {
-            createNemoButton(field)
-          }
+        if (field instanceof HTMLInputElement && isUsernameField(field)) {
+          createNemoButton(field)
         }
       })
     }
 
-    // Initial detection
     setTimeout(detectAndAttachButtons, 1000)
 
-    // Watch for dynamically added fields
     const observer = new MutationObserver(() => {
-      detectAndAttachButtons()
+      if (detectTimeout) return
+      detectTimeout = setTimeout(() => {
+        detectTimeout = null
+        detectAndAttachButtons()
+      }, 200)
     })
     observer.observe(document.body, { childList: true, subtree: true })
 
-    // Close overlays on click outside
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement
       if (!target.closest('#nemo-autofill-overlay') && !target.closest('#nemo-generator-panel')) {
@@ -831,41 +752,26 @@ export default defineContentScript({
       }
     })
 
-    // Handle focus events for inline suggestions
     document.addEventListener('focusin', async (e) => {
       const target = e.target as HTMLInputElement
       if (target.type === 'password' || target.type === 'text' || target.type === 'email') {
         currentField = target
 
-        // Check if vault is unlocked and we have a match for this URL
-        const state = await getVaultState()
-        if (state?.isUnlocked && !isVisible) {
-          const entry = await queryVaultForUrl(window.location.href)
+        const state = await getCachedVaultState()
+        if (state?.isUnlocked && !overlayElement) {
+          const entry = await getCachedEntryByUrl(window.location.href)
           if (entry) {
-            // Check site preferences
             const hostname = getHostnameFromUrl(window.location.href)
-            const prefs = hostname ? await getSitePreferences(hostname) : null
+            const prefs = hostname ? await sendBgMessage('GET_SITE_PREFERENCES', hostname) : null
 
-            if (prefs?.autoFillMode === 'never') {
-              // User has disabled auto-fill for this site
-              return
-            }
+            if (prefs?.autoFillMode === 'never') return
 
             if (prefs?.autoFillMode === 'always' && prefs.preferredEntryId === entry.id) {
-              // Auto-fill immediately if preferred entry matches
-              fillPasswordFields(entry.username, entry.password)
-              return
+              fillPasswordFields(entry.username, entry.password, currentField ?? undefined)
             }
-
-            // Show subtle indicator that credentials are available
-            showInlineIndicator(target)
           }
         }
       }
     })
   }
 })
-
-function showInlineIndicator(field: HTMLInputElement) {
-  // Implementation for inline indicator
-}

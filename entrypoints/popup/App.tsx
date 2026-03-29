@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { VaultEntry, VaultRegistry } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
@@ -13,9 +18,24 @@ import '~/style.css'
 
 type FilterType = 'all' | 'recent'
 
+type SitePreferences = {
+  hostname: string
+  autoFillMode: 'always' | 'never' | 'ask'
+  preferredEntryId?: string
+  createdAt: number
+  updatedAt: number
+}
+
 type VaultState = {
   isUnlocked: boolean
-  vault: { entries: VaultEntry[]; settings: { autoLockMinutes: number; theme: 'light' | 'dark' | 'system' } } | null
+  vault: {
+    entries: VaultEntry[]
+    settings: {
+      autoLockMinutes: number
+      theme: 'light' | 'dark' | 'system'
+      sitePreferences?: Record<string, SitePreferences>
+    }
+  } | null
   metadata: { version: string; vaultId: string; createdAt: number; updatedAt: number } | null
   lastActivity: number
 }
@@ -130,7 +150,7 @@ export default function App() {
       const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT' })
       if (response.success) {
         setTimeout(() => {
-          setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+          setState((prev) => ({ ...prev, isUnlocked: true, vault: response.data }))
           setIsUnlocking(false)
         }, 800)
       } else {
@@ -154,7 +174,7 @@ export default function App() {
     if (response.success) {
       setShowVaultSetup(false)
       setVaultExists({ exists: true, hasCredential: enableTouchId })
-      setState((prev: any) => ({
+      setState((prev) => ({
         ...prev,
         isUnlocked: true,
         metadata: response.data.metadata,
@@ -168,7 +188,7 @@ export default function App() {
   const handleRecoveryCreate = async (phrase: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'CREATE_VAULT_FROM_RECOVERY', payload: phrase })
     if (response.success) {
-      setState((prev: any) => ({
+      setState((prev) => ({
         ...prev,
         isUnlocked: true,
         metadata: response.data,
@@ -182,7 +202,7 @@ export default function App() {
   const handleRecoveryUnlock = async (phrase: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT_FROM_RECOVERY', payload: phrase })
     if (response.success) {
-      setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+      setState((prev) => ({ ...prev, isUnlocked: true, vault: response.data }))
     } else {
       throw new Error(response.error || 'Failed to unlock vault')
     }
@@ -191,7 +211,7 @@ export default function App() {
   const handlePinUnlock = async (pin: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'UNLOCK_VAULT_WITH_PIN', payload: pin })
     if (response.success) {
-      setState((prev: any) => ({ ...prev, isUnlocked: true, vault: response.data }))
+      setState((prev) => ({ ...prev, isUnlocked: true, vault: response.data }))
     } else {
       throw new Error(response.error || 'Failed to unlock with PIN')
     }
@@ -224,7 +244,7 @@ export default function App() {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'ADD_ENTRY', payload: entry })
       if (response.success) {
-        setState((prev: any) => ({
+        setState((prev) => ({
           ...prev,
           vault: prev.vault ? { ...prev.vault, entries: [...prev.vault.entries, response.data] } : null
         }))
@@ -245,9 +265,9 @@ export default function App() {
       payload: { id: editingEntry.id, updates }
     })
     if (response.success) {
-      setState((prev: any) => ({
+      setState((prev) => ({
         ...prev,
-        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.map((e: any) => e.id === editingEntry.id ? response.data : e) } : null
+        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.map((e) => e.id === editingEntry.id ? response.data : e) } : null
       }))
     }
     setEditingEntry(null)
@@ -257,9 +277,9 @@ export default function App() {
   const handleDeleteEntry = async (id: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'DELETE_ENTRY', payload: id })
     if (response.success) {
-      setState((prev: any) => ({
+      setState((prev) => ({
         ...prev,
-        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.filter((e: any) => e.id !== id) } : null
+        vault: prev.vault ? { ...prev.vault, entries: prev.vault.entries.filter((e) => e.id !== id) } : null
       }))
     }
     setViewingEntry(null)
@@ -282,13 +302,13 @@ export default function App() {
   const handleImport = async (data: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'IMPORT_VAULT', payload: data })
     if (response.success) {
-      setState((prev: any) => ({ ...prev, vault: response.data }))
+      setState((prev) => ({ ...prev, vault: response.data }))
     }
   }
 
   const handleSettingsChange = async (settings: Partial<{ autoLockMinutes: number }>) => {
     await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', payload: settings })
-    setState((prev: any) => ({
+    setState((prev) => ({
       ...prev,
       vault: prev.vault ? { ...prev.vault, settings: { ...prev.vault.settings, ...settings } } : null
     }))
@@ -313,7 +333,7 @@ export default function App() {
     })
     if (response.success) {
       setViewingEntry(response.data)
-      refreshVault()
+      await loadStateWithRetry()
     }
   }
 
@@ -323,7 +343,7 @@ export default function App() {
       payload: { hostname, preferences }
     })
     if (response.success) {
-      refreshVault()
+      await loadStateWithRetry()
     }
   }
 
@@ -383,10 +403,6 @@ export default function App() {
               setSelectedIndex(-1)
             }
           }
-          break
-        case 'Escape':
-          e.preventDefault()
-          handleLock()
           break
       }
     }
@@ -609,8 +625,12 @@ export default function App() {
                       alt=""
                       className="w-5 h-5"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden')
+                        const img = e.target as HTMLImageElement
+                        img.style.display = 'none'
+                        const sibling = img.nextElementSibling as HTMLElement | null
+                        if (sibling) {
+                          sibling.classList.remove('hidden')
+                        }
                       }}
                     />
                   ) : null}

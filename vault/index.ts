@@ -1,12 +1,13 @@
-declare(strict_types=1);
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 export type { VaultData, VaultVersion, VaultEntry, VaultDevice, VaultSettings } from "./types";
-export type { EncryptedVault, VaultMetadata, RecoveryData } from "./types";
-export type { VaultStorage } from "./storage";
+export type { EncryptedVault, VaultMetadata, RecoveryData, VaultStorage } from "./types";
 export type { Migration } from "./types";
-export type { ConflictInfo, ConflictResolution } from "./vault";
 
-export { Vault, VaultBuilder, migrateVault, getCurrentVersion } from "./vault";
+export { Vault } from "./vault";
 export { VaultManager } from "./manager";
 export { VaultStorageManager, LocalStorageAdapter, RemoteStorageAdapter } from "./storage";
 export {
@@ -30,8 +31,5 @@ export {
   generateRecoveryPhrase,
   createRecoveryBackup,
   recoverVaultKey,
-  validateRecoveryPhraseChecksum,
-  wordlistSize,
-  phraseWordCount,
-  entropyStrength
+  isValidPhrase
 } from "./recovery";

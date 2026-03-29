@@ -303,7 +303,33 @@ After completing edits, clean up:
 4. Run type checks: `pnpm compile`
 5. Build the extension: `pnpm build`
 
-## Testing
+## Security
+
+A pre-commit hook and security check script are provided:
+
+**Pre-commit hook** (`.git/hooks/pre-commit`):
+- Runs TypeScript compilation check
+- Scans for hardcoded secrets
+- Detects dangerous eval/Function usage
+- Checks for buffer overflow patterns
+
+**Security check script** (`scripts/security-check.sh`):
+Run manually: `./scripts/security-check.sh`
+
+Checks for:
+- Hardcoded passwords, API keys, secrets, tokens
+- Session storage of sensitive data
+- eval() and new Function() usage
+- String.fromCharCode spread pattern (buffer overflow)
+- Subdomain spoofing in URL matching (missing dot boundary)
+- Excessive any casts that hide type errors
+
+**Common security patterns to avoid**:
+- Never store plaintext passwords in session/local storage
+- Always use dot boundary for hostname matching: `hostname === entryHostname || hostname.endsWith('.' + entryHostname)`
+- Use chunked string conversion for large buffers instead of spread operator
+- Validate imported data before writing to files
+- Scope credential filling to the current form, not the entire page
 
 No automated tests currently. Manual testing:
 

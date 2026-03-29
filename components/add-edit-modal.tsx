@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect } from 'react'
 import type { VaultEntry } from '~/utils/types'
 import { TOTPSetup } from './totp-setup'
@@ -22,7 +27,6 @@ export function AddEditModal({
   const [password, setPassword] = useState('')
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
-  const [masterKey, setMasterKey] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
   const [totpConfig, setTOTPConfig] = useState<TOTPConfig | undefined>(undefined)

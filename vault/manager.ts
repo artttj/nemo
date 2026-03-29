@@ -1,11 +1,13 @@
-declare(strict_types=1);
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-import type { VaultData, EncryptedVault, VaultMetadata, RecoveryData, VaultDevice } from "./types";
-import type { VaultStorage } from "./storage";
+import type { VaultData, EncryptedVault, VaultMetadata, RecoveryData, VaultDevice, VaultStorage } from "./types";
 import { Vault } from "./vault";
 import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateSalt, type KDFType, wipeKey } from "./crypto";
 import { VaultStorageManager, LocalStorageAdapter, RemoteStorageAdapter } from "./storage";
-import { createRecoveryBackup, recoverVaultKey, validateRecoveryPhraseChecksum } from "./recovery";
+import { createRecoveryBackup, recoverVaultKey, isValidPhrase } from "./recovery";
 
 export interface VaultManagerConfig {
   storage?: VaultStorage;
@@ -146,7 +148,7 @@ export class VaultManager {
   }
 
   async validateRecoveryPhrase(phrase: string): Promise<boolean> {
-    return await validateRecoveryPhraseChecksum(phrase);
+    return isValidPhrase(phrase)
   }
 
   async recoverFromPhrase(phrase: string, recoveryData: RecoveryData): Promise<Vault> {
@@ -281,7 +283,7 @@ export class VaultManager {
   }
 
   async getDevices(): Promise<VaultDevice[]> {
-    return this.vault?.devices ?? [];
+    return [...(this.vault?.devices ?? [])];
   }
 
   async removeDevice(deviceId: string): Promise<void> {

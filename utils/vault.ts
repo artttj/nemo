@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type { Vault, VaultMetadata, VaultEntry, VaultInfo, VaultRegistry, EntryHistory } from "./types"
 import type { RecoveryData } from "../vault/types"
 import { encrypt, decrypt, generateSalt, generateUUID, generateVaultKey, wrapVaultKey, unwrapVaultKey, bufferToBase64 } from "./crypto"
@@ -11,6 +16,7 @@ const RECOVERY_FILE = "recovery.enc"
 
 let opfsRoot: FileSystemDirectoryHandle | null = null
 let activeVaultId: string | null = null
+let saveLock: Promise<void> = Promise.resolve()
 
 async function getOPFSRoot(): Promise<FileSystemDirectoryHandle> {
   if (!opfsRoot) {
@@ -359,36 +365,41 @@ export async function loadVault(key: CryptoKey): Promise<Vault | null> {
 }
 
 export async function saveVault(vault: Vault, key: CryptoKey): Promise<void> {
-  const activeId = await getActiveVaultId()
-  if (!activeId) throw new Error("No active vault")
-  
-  const dir = await getVaultDirectory(activeId, true)
-  if (!dir) throw new Error("Failed to access vault directory")
-  
-  const { ciphertext, iv } = await encrypt(JSON.stringify(vault), key)
-  
-  const vaultFile = await dir.getFileHandle(VAULT_FILE, { create: true })
-  const writer = await vaultFile.createWritable()
-  await writer.write(JSON.stringify({ ciphertext, iv }))
-  await writer.close()
+  const doSave = async () => {
+    const activeId = await getActiveVaultId()
+    if (!activeId) throw new Error("No active vault")
 
-  const metadataFile = await dir.getFileHandle(METADATA_FILE, { create: true })
-  const metadataBlob = await metadataFile.getFile()
-  const metadataText = await metadataBlob.text()
-  const metadata = JSON.parse(metadataText) as VaultMetadata
-  metadata.updatedAt = Date.now()
-  
-  const metadataWriter = await metadataFile.createWritable()
-  await metadataWriter.write(JSON.stringify(metadata, null, 2))
-  await metadataWriter.close()
-  
-  const registry = await loadRegistry()
-  const vaultInfo = registry.vaults.find(v => v.id === activeId)
-  if (vaultInfo) {
-    vaultInfo.entryCount = vault.entries.length
-    vaultInfo.updatedAt = Date.now()
-    await saveRegistry(registry)
+    const dir = await getVaultDirectory(activeId, true)
+    if (!dir) throw new Error("Failed to access vault directory")
+
+    const { ciphertext, iv } = await encrypt(JSON.stringify(vault), key)
+
+    const vaultFile = await dir.getFileHandle(VAULT_FILE, { create: true })
+    const writer = await vaultFile.createWritable()
+    await writer.write(JSON.stringify({ ciphertext, iv }))
+    await writer.close()
+
+    const metadataFile = await dir.getFileHandle(METADATA_FILE, { create: true })
+    const metadataBlob = await metadataFile.getFile()
+    const metadataText = await metadataBlob.text()
+    const metadata = JSON.parse(metadataText) as VaultMetadata
+    metadata.updatedAt = Date.now()
+
+    const metadataWriter = await metadataFile.createWritable()
+    await metadataWriter.write(JSON.stringify(metadata, null, 2))
+    await metadataWriter.close()
+
+    const registry = await loadRegistry()
+    const vaultInfo = registry.vaults.find(v => v.id === activeId)
+    if (vaultInfo) {
+      vaultInfo.entryCount = vault.entries.length
+      vaultInfo.updatedAt = Date.now()
+      await saveRegistry(registry)
+    }
   }
+
+  saveLock = saveLock.then(doSave, doSave)
+  return saveLock
 }
 
 export async function exportVault(key: CryptoKey): Promise<string> {
@@ -415,7 +426,7 @@ export async function importVault(
   key: CryptoKey
 ): Promise<{ vault: Vault; metadata: VaultMetadata }> {
   const parsed = JSON.parse(exportedData)
-  
+
   if (!parsed.data?.ciphertext || !parsed.data?.iv) {
     throw new Error("Invalid backup format")
   }
@@ -423,9 +434,22 @@ export async function importVault(
   const decrypted = await decrypt(parsed.data.ciphertext, parsed.data.iv, key)
   const { vault, metadata } = JSON.parse(decrypted)
 
+  if (!metadata?.vaultId || typeof metadata.vaultId !== 'string' ||
+      !metadata?.name || typeof metadata.name !== 'string' ||
+      typeof metadata?.createdAt !== 'number' ||
+      typeof metadata?.updatedAt !== 'number' ||
+      typeof metadata?.version !== 'string' ||
+      typeof metadata?.salt !== 'string') {
+    throw new Error('Invalid or corrupted backup metadata')
+  }
+
+  if (!Array.isArray(vault?.entries)) {
+    throw new Error('Invalid vault data')
+  }
+
   const activeId = await getActiveVaultId()
   if (!activeId) throw new Error("No active vault")
-  
+
   const dir = await getVaultDirectory(activeId, true)
   if (!dir) throw new Error("Failed to access vault directory")
 
@@ -524,19 +548,39 @@ export function getEntryByUrl(vault: Vault, url: string): VaultEntry | undefined
   try {
     const urlObj = new URL(url)
     const hostname = urlObj.hostname.replace(/^www\./, "")
-    
+
     return vault.entries.find((entry: VaultEntry) => {
       if (!entry.url) return false
       try {
         const entryUrl = new URL(entry.url)
         const entryHostname = entryUrl.hostname.replace(/^www\./, "")
-        return hostname === entryHostname || hostname.endsWith(entryHostname)
+        return hostname === entryHostname || hostname.endsWith('.' + entryHostname)
       } catch {
         return false
       }
     })
   } catch {
     return undefined
+  }
+}
+
+export function getEntriesByUrl(vault: Vault, url: string): VaultEntry[] {
+  try {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname.replace(/^www\./, "")
+
+    return vault.entries.filter((entry: VaultEntry) => {
+      if (!entry.url) return false
+      try {
+        const entryUrl = new URL(entry.url)
+        const entryHostname = entryUrl.hostname.replace(/^www\./, "")
+        return hostname === entryHostname || hostname.endsWith('.' + entryHostname)
+      } catch {
+        return false
+      }
+    })
+  } catch {
+    return []
   }
 }
 

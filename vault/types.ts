@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 export type VaultVersion = 1;
 
 export interface VaultDevice {
@@ -36,6 +41,7 @@ export interface VaultData {
   deviceId: string
   entries: VaultEntry[]
   settings: VaultSettings
+  devices?: VaultDevice[]
 }
 
 export interface EncryptedVault {

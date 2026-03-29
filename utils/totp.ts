@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 const BITS_PER_BASE32_CHAR = 5
 const BITS_PER_BYTE = 8
@@ -33,7 +38,7 @@ function base32Decode(encoded: string): Uint8Array {
   const bits: number[] = []
   for (const char of cleaned) {
     const val = BASE32_CHARS.indexOf(char)
-    if (val === -1) continue
+    if (val === -1) throw new Error(`Invalid base32 character: ${char}`)
     for (let i = BITS_PER_BASE32_CHAR - 1; i >= 0; i--) {
       bits.push((val >> i) & 1)
     }
@@ -49,13 +54,14 @@ function base32Decode(encoded: string): Uint8Array {
 }
 
 /**
- * Generate HOTP code using HMAC-SHA1 following RFC 4226.
+ * Generate HOTP code using HMAC following RFC 4226.
  * This is the core algorithm that TOTP builds upon.
  */
 async function generateHOTP(
   secret: Uint8Array,
   counter: number,
-  digits: number = TOTP_DIGITS_DEFAULT
+  digits: number = TOTP_DIGITS_DEFAULT,
+  algorithm: 'SHA-1' | 'SHA-256' | 'SHA-512' = 'SHA-1'
 ): Promise<string> {
   const counterBuffer = new ArrayBuffer(COUNTER_BYTES)
   const counterView = new DataView(counterBuffer)
@@ -65,7 +71,7 @@ async function generateHOTP(
   const key = await (crypto.subtle.importKey as any)(
     'raw',
     secret,
-    { name: 'HMAC', hash: 'SHA-1' },
+    { name: 'HMAC', hash: algorithm },
     false,
     ['sign']
   )
@@ -96,7 +102,7 @@ async function generateHOTP(
  * @throws {Error} If secret is invalid or crypto operations fail
  */
 export async function generateTOTP(config: TOTPConfig): Promise<TOTPCode> {
-  const { secret, digits = TOTP_DIGITS_DEFAULT, period = TOTP_PERIOD_DEFAULT } = config
+  const { secret, digits = TOTP_DIGITS_DEFAULT, period = TOTP_PERIOD_DEFAULT, algorithm = 'SHA-1' } = config
 
   try {
     const secretBytes = base32Decode(secret)
@@ -105,7 +111,7 @@ export async function generateTOTP(config: TOTPConfig): Promise<TOTPCode> {
     const remainingSeconds = period - (now % period)
     const progress = remainingSeconds / period
 
-    const code = await generateHOTP(secretBytes, counter, digits)
+    const code = await generateHOTP(secretBytes, counter, digits, algorithm)
 
     return {
       code,

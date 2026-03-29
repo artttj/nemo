@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type { RecoveryData } from "./types"
 import { wrapVaultKey, unwrapVaultKey } from "../utils/crypto"
 import { generateRandomBytes, bufferToBase64 } from "../utils/crypto"
@@ -222,35 +227,36 @@ function validatePhrase(phrase: string): boolean {
 function wordsToEntropy(phrase: string): Uint8Array {
   const words = phrase.trim().toLowerCase().split(/\s+/)
   const bits: number[] = []
-  
+
   for (const word of words) {
     const index = BIP39_WORDLIST.indexOf(word)
     for (let i = 10; i >= 0; i--) {
       bits.push((index >> i) & 1)
     }
   }
-  
-  const entropy = new Uint8Array(16)
-  for (let i = 0; i < 128; i++) {
+
+  // Use 132 bits (17 bytes, last 4 bits unused) to match generateRecoveryPhrase
+  const entropy = new Uint8Array(17)
+  for (let i = 0; i < 132; i++) {
     if (bits[i]) {
       entropy[Math.floor(i / 8)] |= 1 << (7 - (i % 8))
     }
   }
-  
+
   return entropy
 }
 
 export function generateRecoveryPhrase(): string {
-  const entropy = new Uint8Array(16)
+  const entropy = new Uint8Array(17)
   crypto.getRandomValues(entropy)
-  
+
   const bits: number[] = []
   for (const byte of entropy) {
     for (let i = 7; i >= 0; i--) {
       bits.push((byte >> i) & 1)
     }
   }
-  
+
   const words: string[] = []
   for (let i = 0; i < 12; i++) {
     let index = 0
@@ -259,7 +265,7 @@ export function generateRecoveryPhrase(): string {
     }
     words.push(BIP39_WORDLIST[index])
   }
-  
+
   return words.join(' ')
 }
 

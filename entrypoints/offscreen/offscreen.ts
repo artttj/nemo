@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { bufferToBase64, base64ToBuffer, generateRandomBytes } from '~/utils/crypto'
 
 const RP_ID = 'nemo.local'
@@ -70,7 +75,7 @@ async function handleRegister(payload: { userId?: string }) {
     rpId: RP_ID,
     createdAt: Date.now(),
     prfSalt: bufferToBase64(prfSalt),
-    prfOutput: bufferToBase64(new Uint8Array(prfOutput))
+    prfOutput: bufferToBase64(new Uint8Array(prfOutput as ArrayBuffer))
   }
 }
 
@@ -107,7 +112,7 @@ async function handleAuthenticate(payload: { credentialId: string; salt: string 
   }
 
   return {
-    prfOutput: bufferToBase64(new Uint8Array(prfOutput))
+    prfOutput: bufferToBase64(new Uint8Array(prfOutput as ArrayBuffer))
   }
 }
 

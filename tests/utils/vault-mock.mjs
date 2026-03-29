@@ -49,7 +49,7 @@ export class MockVaultManager {
         try {
           const entryUrl = new URL(entry.url);
           const entryHostname = entryUrl.hostname.replace(/^www\./, '');
-          return hostname === entryHostname || hostname.endsWith(entryHostname);
+          return hostname === entryHostname || hostname.endsWith('.' + entryHostname);
         } catch {
           return false;
         }

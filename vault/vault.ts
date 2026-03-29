@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type {
   VaultData,
   VaultVersion,
@@ -32,7 +37,7 @@ export function getCurrentVersion(): VaultVersion {
 }
 
 function applyMigrations(data: Record<string, unknown>, fromVersion: number): VaultData {
-  let current = data;
+  let current: unknown = data;
 
   while (fromVersion < CURRENT_VERSION) {
     const migration = migrations[fromVersion];
@@ -47,7 +52,7 @@ function applyMigrations(data: Record<string, unknown>, fromVersion: number): Va
   return current as VaultData;
 }
 
-export function migrateVault(data: Record<string, unknown>, fromVersion: number): VaultData {
+export function migrateVault(data: unknown, fromVersion: number): VaultData {
   if (fromVersion === CURRENT_VERSION) {
     return data as VaultData;
   }
@@ -56,7 +61,7 @@ export function migrateVault(data: Record<string, unknown>, fromVersion: number)
     throw new Error(`Vault version ${fromVersion} is not supported (current: ${CURRENT_VERSION})`);
   }
 
-  return applyMigrations(data, fromVersion);
+  return applyMigrations(data as Record<string, unknown>, fromVersion);
 }
 
 export interface ConflictInfo {
@@ -74,11 +79,11 @@ export interface ConflictResolution {
 
 export class Vault {
   private data: VaultData;
-  private deviceId: string;
+  private _deviceId: string;
 
   constructor(data: VaultData, deviceId?: string) {
     this.data = data;
-    this.deviceId = deviceId ?? this.data.deviceId ?? this.generateDeviceId();
+    this._deviceId = deviceId ?? this.data.deviceId ?? this.generateDeviceId();
   }
 
   static createEmpty(deviceId?: string): Vault {
@@ -136,7 +141,7 @@ export class Vault {
   }
 
   get deviceId(): string {
-    return this.deviceId;
+    return this._deviceId;
   }
 
   toJSON(): VaultData {
@@ -201,7 +206,7 @@ export class Vault {
         try {
           const entryUrl = new URL(entry.url);
           const entryHostname = entryUrl.hostname.replace(/^www\./, "");
-          return hostname === entryHostname || hostname.endsWith(entryHostname);
+          return hostname === entryHostname || hostname.endsWith('.' + entryHostname);
         } catch {
           return false;
         }

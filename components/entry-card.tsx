@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useRef } from 'react'
 import type { VaultEntry } from '~/utils/types'
 

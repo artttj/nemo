@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { wrapVaultKey, unwrapVaultKey } from "../utils/crypto"
 import { generateRandomBytes, bufferToBase64, base64ToBuffer } from "../utils/crypto"
 import type { PinData } from "./types"

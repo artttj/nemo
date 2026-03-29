@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useRef } from 'react'
 import type { VaultEntry, EntryHistory } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
@@ -52,6 +57,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
   const handleCopy = async (text: string, field: string) => {
     await navigator.clipboard.writeText(text)
     setCopied(field)
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
     copyTimeoutRef.current = setTimeout(() => setCopied(null), 2000)
   }
 

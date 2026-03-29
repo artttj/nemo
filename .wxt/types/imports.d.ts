@@ -67,6 +67,7 @@ declare global {
   const getActiveVaultId: typeof import('/private/var/www/nemo/utils/vault')['getActiveVaultId']
   const getBiometricName: typeof import('/private/var/www/nemo/utils/biometric')['getBiometricName']
   const getDomain: typeof import('/private/var/www/nemo/utils/url')['getDomain']
+  const getEntriesByUrl: typeof import('/private/var/www/nemo/utils/vault')['getEntriesByUrl']
   const getEntryByUrl: typeof import('/private/var/www/nemo/utils/vault')['getEntryByUrl']
   const getFaviconUrl: typeof import('/private/var/www/nemo/utils/vault')['getFaviconUrl']
   const getPinConfiguredLength: typeof import('/private/var/www/nemo/utils/vault-ops')['getPinConfiguredLength']

@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react'
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect, useRef } from 'react'
 import { useBiometricType, getBiometricName } from '~/utils/biometric'
 
 interface VaultSetupProps {
@@ -14,6 +19,7 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const biometricType = useBiometricType()
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     generatePhrase()
@@ -39,9 +45,16 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
     try {
       await navigator.clipboard.writeText(phrase)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2500)
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2500)
     } catch {}
   }
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+    }
+  }, [])
 
   const handleCreate = async () => {
     if (!phrase || !confirmed) return

@@ -2,6 +2,16 @@
 
 A local-first, privacy-focused password manager browser extension with passkey authentication and a tactical UI.
 
+## ⚠️ DISCLAIMER
+
+**THIS SOFTWARE IS PROVIDED "AS IS" FOR EDUCATIONAL AND PERSONAL USE.**
+
+- The developer is **NOT a security company**. Use at your own risk.
+- The developer does **NOT have access to your master password or unencrypted data** and cannot help you recover access if you lose your credentials.
+- You are responsible for **regular backups**. Export your vault frequently.
+- This is a **hobby project**, not a commercial product. No uptime guarantees.
+- See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for details.
+
 ## Features
 
 - **Multi-Vault Support** - Create and manage multiple vaults (work, personal, etc.)
@@ -330,12 +340,27 @@ The tactical UI uses:
 
 ## Security Recommendations
 
-1. **Export your vault regularly** - Keep offline backups
+1. **Export your vault regularly** - Keep offline backups. Data loss is your responsibility.
 2. **Register multiple passkeys** - Different devices as backup
-3. **Save your recovery phrase** - 12-word BIP-39 phrase for account recovery
+3. **Save your recovery phrase** - 12-word BIP-39 phrase for account recovery. Store it offline in a secure location.
 4. **Keep browser updated** - Security patches
 5. **Use strong device passcode** - First line of defense
 
+## Zero-Knowledge Architecture
+
+Nemo is designed so that **we cannot access your passwords even if we wanted to**:
+
+1. **All encryption happens in your browser** - Passwords are encrypted with AES-256-GCM before storage
+2. **Master password never leaves your device** - It's used only to derive encryption keys locally
+3. **Server only sees encrypted blobs** - When cloud sync is enabled, the server receives ciphertext, not plaintext
+4. **Recovery phrase is the only backup** - We cannot reset your password
+
+If you lose your master password and recovery phrase, your data is permanently inaccessible. We cannot help you recover it.
+
 ## License
 
-MIT
+Apache License 2.0 - See [LICENSE](LICENSE) for details.
+
+## Privacy Policy
+
+See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for our privacy policy.

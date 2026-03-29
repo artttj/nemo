@@ -1,3 +1,8 @@
+/**
+ * Copyright 2024-2025 Artem Iagovdik <artyom.yagovdik@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const ALGORITHM = "AES-GCM"
 const KEY_LENGTH = 256
 const SALT_LENGTH = 16
@@ -159,7 +164,11 @@ export async function decrypt(
 }
 
 export function bufferToBase64(buffer: Uint8Array): string {
-  return btoa(String.fromCharCode(...buffer))
+  let binary = ''
+  for (let i = 0; i < buffer.length; i++) {
+    binary += String.fromCharCode(buffer[i])
+  }
+  return btoa(binary)
 }
 
 export function base64ToBuffer(base64: string): Uint8Array {
