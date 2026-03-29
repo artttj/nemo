@@ -5,10 +5,13 @@ import { Vault } from "./vault";
 import { generateVaultKey, wrapVaultKey, unwrapVaultKey, generateSalt, type KDFType, wipeKey } from "./crypto";
 import { VaultStorageManager, LocalStorageAdapter, RemoteStorageAdapter } from "./storage";
 import { createRecoveryBackup, recoverVaultKey, isValidPhrase } from "./recovery";
+import type { KeyStorage } from "./key-storage";
+import { OPFSKeyStorage } from "./key-storage";
 
 export interface VaultManagerConfig {
   storage?: VaultStorage;
   kdf?: KDFType;
+  keyStorage?: KeyStorage;
 }
 
 export interface UnlockParams {
@@ -23,12 +26,14 @@ export class VaultManager {
   private vaultKey: CryptoKey | null = null;
   private vault: Vault | null = null;
   private kdf: KDFType;
+  private keyStorage: KeyStorage;
 
   constructor(config: VaultManagerConfig = {}) {
     this.storage = config.storage
       ? new VaultStorageManager(config.storage)
       : VaultStorageManager.createLocal();
     this.kdf = config.kdf ?? "pbkdf2";
+    this.keyStorage = config.keyStorage ?? new OPFSKeyStorage();
   }
 
   async exists(): Promise<boolean> {
@@ -56,7 +61,7 @@ export class VaultManager {
     await this.storage.save(encrypted);
     await this.storage.saveMetadata(metadata);
 
-    await this.saveWrappedKey(password, salt, vaultKey);
+    await this.wrapAndSaveKey(password, salt, vaultKey);
 
     this.vaultKey = vaultKey;
     this.vault = vault;
@@ -77,14 +82,14 @@ export class VaultManager {
         salt: metadata.salt
       });
 
-      const wrappedKeyData = await this.loadWrappedKey();
+      const wrappedKeyData = await this.keyStorage.loadWrappedKey();
       if (!wrappedKeyData) {
         throw new Error("Wrapped vault key not found. Password unlock not available.");
       }
 
       this.vaultKey = await unwrapVaultKey(wrappedKeyData.wrappedKey, wrappedKeyData.iv, wrappingKey);
     } else if (params.webAuthnWrappingKey) {
-      const wrappedKeyData = await this.loadWrappedKey();
+      const wrappedKeyData = await this.keyStorage.loadWrappedKey();
       if (!wrappedKeyData) {
         throw new Error("Wrapped vault key not found");
       }
@@ -234,7 +239,7 @@ export class VaultManager {
       salt: metadata.salt
     });
 
-    const wrappedKeyData = await this.loadWrappedKey();
+    const wrappedKeyData = await this.keyStorage.loadWrappedKey();
     if (!wrappedKeyData) {
       throw new Error("Wrapped vault key not found");
     }
@@ -255,7 +260,7 @@ export class VaultManager {
       salt: metadata.salt
     });
 
-    await this.saveWrappedKey(newPassword, metadata.salt, this.vaultKey);
+    await this.wrapAndSaveKey(newPassword, metadata.salt, this.vaultKey);
 
     await wipeKey(newKey);
   }
@@ -276,7 +281,7 @@ export class VaultManager {
 
     const { wrappedKey, iv } = await wrapVaultKey(this.vaultKey, wrappingKey);
 
-    await this.saveWrappedVaultKey(credentialId, { wrappedKey, iv });
+    await this.keyStorage.saveCredentialKey(credentialId, { wrappedKey, iv });
   }
 
   async getDevices(): Promise<VaultDevice[]> {
@@ -330,20 +335,7 @@ export class VaultManager {
     };
   }
 
-  private async loadWrappedKey(): Promise<{ wrappedKey: string; iv: string } | null> {
-    try {
-      const dir = await navigator.storage.getDirectory();
-      const vaultDir = await dir.getDirectoryHandle("nemo-vault");
-      const file = await vaultDir.getFileHandle("key.enc");
-      const blob = await file.getFile();
-      const text = await blob.text();
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
-  }
-
-  private async saveWrappedKey(
+  private async wrapAndSaveKey(
     password: string,
     salt: string,
     vaultKey: CryptoKey
@@ -355,24 +347,6 @@ export class VaultManager {
     });
 
     const { wrappedKey, iv } = await wrapVaultKey(vaultKey, wrappingKey);
-
-    const dir = await navigator.storage.getDirectory();
-    const vaultDir = await dir.getDirectoryHandle("nemo-vault", { create: true });
-    const file = await vaultDir.getFileHandle("key.enc", { create: true });
-    const writer = await file.createWritable();
-    await writer.write(JSON.stringify({ wrappedKey, iv }));
-    await writer.close();
-  }
-
-  private async saveWrappedVaultKey(
-    credentialId: string,
-    data: { wrappedKey: string; iv: string }
-  ): Promise<void> {
-    const dir = await navigator.storage.getDirectory();
-    const vaultDir = await dir.getDirectoryHandle("nemo-vault", { create: true });
-    const file = await vaultDir.getFileHandle(`key-${credentialId}.enc`, { create: true });
-    const writer = await file.createWritable();
-    await writer.write(JSON.stringify({ ...data, credentialId }));
-    await writer.close();
+    await this.keyStorage.saveWrappedKey({ wrappedKey, iv });
   }
 }

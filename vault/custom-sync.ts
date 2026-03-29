@@ -1,6 +1,6 @@
 
 
-import type { VaultStorage, EncryptedVault, VaultMetadata, SyncResult } from "./types";
+import type { VaultStorage, EncryptedVault, VaultMetadata, SyncResult, Syncable } from "./types";
 import { LocalStorageAdapter } from "./storage";
 import { DEFAULT_SYNC_SERVER } from "../config/sync";
 
@@ -33,13 +33,13 @@ export interface CustomSyncStatus {
 
 let currentAdapter: CustomBackendAdapter | null = null;
 
-export class CustomBackendAdapter implements VaultStorage {
+export class CustomBackendAdapter implements VaultStorage, Syncable {
   private config: CustomBackendConfig;
-  private localAdapter: LocalStorageAdapter;
+  private localStorage: VaultStorage;
 
-  constructor(config: CustomBackendConfig) {
+  constructor(config: CustomBackendConfig, localStorage?: VaultStorage) {
     this.config = config;
-    this.localAdapter = new LocalStorageAdapter();
+    this.localStorage = localStorage ?? new LocalStorageAdapter();
   }
 
   updateConfig(config: Partial<CustomBackendConfig>): void {
@@ -90,7 +90,7 @@ export class CustomBackendAdapter implements VaultStorage {
   }
 
   async save(vault: EncryptedVault): Promise<void> {
-    const metadata = await this.localAdapter.loadMetadata();
+    const metadata = await this.localStorage.loadMetadata();
     if (!metadata) throw new Error("No local metadata available");
 
     const response = await fetch(`${this.config.baseUrl}/api/vault`, {
@@ -132,7 +132,7 @@ export class CustomBackendAdapter implements VaultStorage {
   }
 
   async saveMetadata(metadata: VaultMetadata): Promise<void> {
-    
+    await this.localStorage.saveMetadata(metadata);
     this.config.lastSyncAt = Date.now();
   }
 
@@ -152,8 +152,8 @@ export class CustomBackendAdapter implements VaultStorage {
     const startTime = Date.now();
 
     try {
-      const localRaw = await this.localAdapter.load();
-      const localMetadata = await this.localAdapter.loadMetadata();
+      const localRaw = await this.localStorage.load();
+      const localMetadata = await this.localStorage.loadMetadata();
       const remoteResponse = await fetch(`${this.config.baseUrl}/api/vault`, {
         headers: this.getHeaders(),
       });
@@ -169,8 +169,8 @@ export class CustomBackendAdapter implements VaultStorage {
 
       if (!localMetadata) {
         if (remoteVault && remoteMetadata) {
-          await this.localAdapter.save(remoteVault);
-          await this.localAdapter.saveMetadata(remoteMetadata);
+          await this.localStorage.save(remoteVault);
+          await this.localStorage.saveMetadata(remoteMetadata);
           return { success: true, direction: "download", timestamp: Date.now() };
         }
         return { success: true, timestamp: Date.now() };
@@ -196,8 +196,8 @@ export class CustomBackendAdapter implements VaultStorage {
         await this.save(localVault);
         return { success: true, direction: "upload", timestamp: Date.now() };
       } else if (remoteUpdatedAt > localUpdatedAt) {
-        await this.localAdapter.save(remoteVault);
-        await this.localAdapter.saveMetadata(remoteMetadata);
+        await this.localStorage.save(remoteVault);
+        await this.localStorage.saveMetadata(remoteMetadata);
         return { success: true, direction: "download", timestamp: Date.now() };
       }
 
@@ -282,20 +282,18 @@ export async function initializeCustomSync(
     const fullConfig: CustomBackendConfig = {
       baseUrl,
       authToken,
-      enabled: false, 
+      enabled: false,
       syncOnChange: config.syncOnChange,
       isAnonymous
     };
 
     const adapter = new CustomBackendAdapter(fullConfig);
 
-    
     const registerResult = await adapter.register();
     if (!registerResult.success) {
       return registerResult;
     }
 
-    
     const testResult = await adapter.testConnection();
     if (!testResult.success) {
       return testResult;

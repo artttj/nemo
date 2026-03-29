@@ -83,6 +83,11 @@ export interface VaultStorage {
   exists(): Promise<boolean>
 }
 
+export interface Syncable {
+  sync(): Promise<SyncResult>
+  testConnection(): Promise<{ success: boolean; error?: string }>
+}
+
 export interface CloudflareD1Config {
   accountId: string
   databaseId: string

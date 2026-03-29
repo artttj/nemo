@@ -7,8 +7,8 @@ const IV_LENGTH = 12
 const PBKDF2_ITERATIONS = 100000
 const WRAPPING_KEY_LENGTH = 256
 
-export async function generateSalt(): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
+export async function generateSalt(length: number = SALT_LENGTH): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(length))
   return bufferToBase64(salt)
 }
 

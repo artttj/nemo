@@ -1,6 +1,6 @@
 
 
-import type { VaultStorage, EncryptedVault, VaultMetadata, CloudflareD1Config, SyncStatus, SyncResult } from "./types";
+import type { VaultStorage, EncryptedVault, VaultMetadata, CloudflareD1Config, SyncResult, Syncable } from "./types";
 
 const VAULT_DIR = "nemo-vault";
 const VAULT_FILE = "vault.enc";
@@ -175,13 +175,13 @@ export class RemoteStorageAdapter implements VaultStorage {
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 
-export class CloudflareD1Adapter implements VaultStorage {
+export class CloudflareD1Adapter implements VaultStorage, Syncable {
   private config: CloudflareD1Config;
-  private localAdapter: LocalStorageAdapter;
+  private localStorage: VaultStorage;
 
-  constructor(config: CloudflareD1Config) {
+  constructor(config: CloudflareD1Config, localStorage?: VaultStorage) {
     this.config = config;
-    this.localAdapter = new LocalStorageAdapter();
+    this.localStorage = localStorage ?? new LocalStorageAdapter();
   }
 
   updateConfig(config: Partial<CloudflareD1Config>): void {
@@ -373,15 +373,15 @@ export class CloudflareD1Adapter implements VaultStorage {
     const startTime = Date.now();
 
     try {
-      const localVault = await this.localAdapter.load();
+      const localVault = await this.localStorage.load();
       const remoteVault = await this.load();
-      const localMetadata = await this.localAdapter.loadMetadata();
+      const localMetadata = await this.localStorage.loadMetadata();
       const remoteMetadata = await this.loadMetadata();
 
       if (!localMetadata) {
         if (remoteMetadata) {
-          await this.localAdapter.save(remoteVault!);
-          await this.localAdapter.saveMetadata(remoteMetadata);
+          await this.localStorage.save(remoteVault!);
+          await this.localStorage.saveMetadata(remoteMetadata);
           return {
             success: true,
             direction: 'download',
@@ -413,8 +413,8 @@ export class CloudflareD1Adapter implements VaultStorage {
           timestamp: Date.now()
         };
       } else if (remoteUpdatedAt > localUpdatedAt) {
-        await this.localAdapter.save(remoteVault!);
-        await this.localAdapter.saveMetadata(remoteMetadata);
+        await this.localStorage.save(remoteVault!);
+        await this.localStorage.saveMetadata(remoteMetadata);
         return {
           success: true,
           direction: 'download',
@@ -445,20 +445,20 @@ export class CloudflareD1Adapter implements VaultStorage {
   }
 
   private async getVaultId(): Promise<string> {
-    const metadata = await this.localAdapter.loadMetadata();
+    const metadata = await this.localStorage.loadMetadata();
     return metadata?.vaultId ?? "default";
   }
 }
 
+export function isSyncable(storage: VaultStorage): storage is VaultStorage & Syncable {
+  return 'sync' in storage && 'testConnection' in storage;
+}
+
 export class VaultStorageManager {
   private storage: VaultStorage;
-  private cloudflareAdapter?: CloudflareD1Adapter;
 
   constructor(storage?: VaultStorage) {
     this.storage = storage ?? new LocalStorageAdapter();
-    if (storage instanceof CloudflareD1Adapter) {
-      this.cloudflareAdapter = storage;
-    }
   }
 
   static createLocal(): VaultStorageManager {
@@ -477,15 +477,10 @@ export class VaultStorageManager {
 
   setStorage(storage: VaultStorage): void {
     this.storage = storage;
-    if (storage instanceof CloudflareD1Adapter) {
-      this.cloudflareAdapter = storage;
-    } else {
-      this.cloudflareAdapter = undefined;
-    }
   }
 
-  getCloudflareAdapter(): CloudflareD1Adapter | undefined {
-    return this.cloudflareAdapter;
+  getSyncAdapter(): Syncable | undefined {
+    return isSyncable(this.storage) ? this.storage : undefined;
   }
 
   async load(): Promise<EncryptedVault | null> {

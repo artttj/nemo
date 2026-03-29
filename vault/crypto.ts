@@ -1,11 +1,25 @@
 
 
-import type { EncryptedVault, VaultData, VaultMetadata } from "./types";
+import type { EncryptedVault, VaultData } from "./types";
+
+export {
+  bufferToBase64,
+  base64ToBuffer,
+  generateUUID,
+  generateRandomBytes,
+  generateSalt,
+  generateVaultKey,
+  wrapVaultKey,
+  unwrapVaultKey,
+  deriveWrappingKeyFromPrf,
+} from "../utils/crypto";
 
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
 const IV_LENGTH = 12;
 const PBKDF2_ITERATIONS = 600000;
+
+import { bufferToBase64, base64ToBuffer } from "../utils/crypto";
 
 export type KDFType = "argon2id" | "pbkdf2";
 
@@ -16,22 +30,6 @@ export interface KeyDerivationParams {
   memoryCost?: number;
   timeCost?: number;
   parallelism?: number;
-}
-
-export async function generateSalt(length: number = 16): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(length));
-  return bufferToBase64(salt);
-}
-
-export async function generateVaultKey(): Promise<CryptoKey> {
-  return await crypto.subtle.generateKey(
-    {
-      name: ALGORITHM,
-      length: KEY_LENGTH
-    },
-    true,
-    ["encrypt", "decrypt"]
-  );
 }
 
 export async function deriveKeyFromPassword(
@@ -61,41 +59,6 @@ export async function deriveKeyFromPassword(
       length: KEY_LENGTH
     },
     false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-export async function wrapVaultKey(
-  vaultKey: CryptoKey,
-  wrappingKey: CryptoKey
-): Promise<{ wrappedKey: string; iv: string }> {
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-  const wrappedKey = await crypto.subtle.wrapKey(
-    "raw",
-    vaultKey,
-    wrappingKey,
-    { name: ALGORITHM, iv }
-  );
-  return {
-    wrappedKey: bufferToBase64(new Uint8Array(wrappedKey)),
-    iv: bufferToBase64(iv)
-  };
-}
-
-export async function unwrapVaultKey(
-  wrappedKey: string,
-  iv: string,
-  wrappingKey: CryptoKey
-): Promise<CryptoKey> {
-  const keyBuffer = base64ToBuffer(wrappedKey);
-  const ivBuffer = base64ToBuffer(iv);
-  return await crypto.subtle.unwrapKey(
-    "raw",
-    keyBuffer as BufferSource,
-    wrappingKey,
-    { name: ALGORITHM, iv: ivBuffer as BufferSource },
-    { name: ALGORITHM, length: KEY_LENGTH },
-    true,
     ["encrypt", "decrypt"]
   );
 }
@@ -143,58 +106,6 @@ export async function decryptVault(encrypted: EncryptedVault, key: CryptoKey): P
 
   const text = new TextDecoder().decode(decrypted);
   return JSON.parse(text) as VaultData;
-}
-
-export function bufferToBase64(buffer: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < buffer.length; i++) {
-    binary += String.fromCharCode(buffer[i]);
-  }
-  return btoa(binary);
-}
-
-export function base64ToBuffer(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const buffer = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    buffer[i] = binary.charCodeAt(i);
-  }
-  return buffer;
-}
-
-export function generateUUID(): string {
-  return crypto.randomUUID();
-}
-
-export function generateRandomBytes(length: number): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(length));
-}
-
-export async function deriveWrappingKeyFromPrf(
-  prfOutput: ArrayBuffer,
-  salt: string
-): Promise<CryptoKey> {
-  const saltBuffer = base64ToBuffer(salt);
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    prfOutput,
-    "HKDF",
-    false,
-    ["deriveKey"]
-  );
-
-  return await crypto.subtle.deriveKey(
-    {
-      name: "HKDF",
-      salt: saltBuffer as BufferSource,
-      info: new TextEncoder().encode("nemo-vault-key"),
-      hash: "SHA-256"
-    },
-    keyMaterial,
-    { name: ALGORITHM, length: KEY_LENGTH },
-    true,
-    ["wrapKey", "unwrapKey"]
-  );
 }
 
 export async function wipeKey(key: CryptoKey | null): Promise<void> {
