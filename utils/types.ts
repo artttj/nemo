@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 export interface TOTPConfig {
   secret: string
@@ -130,6 +127,16 @@ export type MessageType =
   | "GET_SITE_PREFERENCES"
   | "SET_SITE_PREFERENCES"
   | "DELETE_SITE_PREFERENCES"
+  | "TEST_CLOUDFLARE_CONNECTION"
+  | "ENABLE_CLOUDFLARE_SYNC"
+  | "DISABLE_CLOUDFLARE_SYNC"
+  | "GET_SYNC_STATUS"
+  | "TRIGGER_SYNC"
+  | "TEST_CUSTOM_BACKEND_CONNECTION"
+  | "ENABLE_CUSTOM_BACKEND_SYNC"
+  | "DISABLE_CUSTOM_BACKEND_SYNC"
+  | "GET_CUSTOM_BACKEND_SYNC_STATUS"
+  | "TRIGGER_CUSTOM_BACKEND_SYNC"
 
 export interface Message<T = unknown> {
   type: MessageType

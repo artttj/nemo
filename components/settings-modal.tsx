@@ -1,10 +1,23 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { VaultSettings, VaultRegistry } from '~/utils/types'
+
+interface CloudflareConfig {
+  accountId: string
+  databaseId: string
+  apiToken: string
+  syncOnChange: boolean
+}
+
+interface SyncStatusData {
+  status: 'idle' | 'syncing' | 'error' | 'success'
+  lastSyncAt?: number
+  error?: string
+  pendingChanges: boolean
+  enabled: boolean
+  authToken?: string
+}
 
 export function SettingsModal({
   isOpen,
@@ -38,7 +51,7 @@ export function SettingsModal({
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
-  const [activeSection, setActiveSection] = useState<'security' | 'backup' | 'vaults'>('security')
+  const [activeSection, setActiveSection] = useState<'security' | 'backup' | 'vaults' | 'sync'>('security')
   const [feedback, setFeedback] = useState<string | null>(null)
   const [pinStep, setPinStep] = useState<'idle' | 'enter' | 'confirm'>('idle')
   const [pinValue, setPinValue] = useState('')
@@ -52,6 +65,16 @@ export function SettingsModal({
   const [vaultActionLoading, setVaultActionLoading] = useState(false)
   const [showSecurityInfo, setShowSecurityInfo] = useState(false)
   const feedbackTimeoutRef = useRef<NodeJS.Timeout>()
+
+  const [syncStatus, setSyncStatus] = useState<SyncStatusData | null>(null)
+  const [cloudflareConfig, setCloudflareConfig] = useState<CloudflareConfig>({
+    accountId: '',
+    databaseId: '',
+    apiToken: '',
+    syncOnChange: true
+  })
+  const [testingConnection, setTestingConnection] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const currentAutoLock = settings?.autoLockMinutes ?? 15
 
@@ -106,6 +129,99 @@ export function SettingsModal({
       setVaultNameInput(currentVault.name)
     }
   }, [editingVaultName, currentVault])
+
+  useEffect(() => {
+    if (isOpen && activeSection === 'sync') {
+      loadSyncStatus()
+    }
+  }, [isOpen, activeSection])
+
+  const loadSyncStatus = async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_CUSTOM_BACKEND_SYNC_STATUS' })
+      if (response.success) {
+        setSyncStatus(response.data)
+        if (response.data.authToken) {
+          setCloudflareConfig(prev => ({
+            ...prev,
+            apiToken: response.data.authToken
+          }))
+        }
+      }
+    } catch {
+      setSyncStatus(null)
+    }
+  }
+
+  const handleEnableSync = async () => {
+    setTestingConnection(true)
+    try {
+      
+      const hasExistingToken = cloudflareConfig.apiToken.length > 20
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'ENABLE_CUSTOM_BACKEND_SYNC',
+        payload: {
+          baseUrl: '', 
+          syncOnChange: true
+        }
+      })
+
+      if (response.success) {
+        showFeedback(hasExistingToken ? 'Sync enabled' : 'Anonymous sync enabled')
+        await loadSyncStatus()
+      } else {
+        showFeedback(response.error || 'Failed to enable sync')
+      }
+    } finally {
+      setTestingConnection(false)
+    }
+  }
+
+  const handleDisableSync = async () => {
+    const response = await chrome.runtime.sendMessage({ type: 'DISABLE_CUSTOM_BACKEND_SYNC' })
+    if (response.success) {
+      showFeedback('Sync disabled')
+      setSyncStatus(null)
+      setCloudflareConfig({
+        accountId: '',
+        databaseId: '',
+        apiToken: '',
+        syncOnChange: true
+      })
+    }
+  }
+
+  const handleTriggerSync = async () => {
+    setSyncing(true)
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'TRIGGER_CUSTOM_BACKEND_SYNC' })
+      if (response.success) {
+        showFeedback('Sync completed')
+        await loadSyncStatus()
+      } else {
+        showFeedback(response.error || 'Sync failed')
+      }
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const formatLastSync = (timestamp?: number): string => {
+    if (!timestamp) return 'Never'
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+
+    if (minutes < 1) return 'Just now'
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    if (days < 7) return `${days}d ago`
+    return date.toLocaleDateString()
+  }
 
   const showFeedback = useCallback((msg: string) => {
     setFeedback(msg)
@@ -311,7 +427,7 @@ export function SettingsModal({
         )}
 
         <div className="flex mx-4 mt-3 p-1 bg-[var(--surface)] rounded-lg">
-          {(['security', 'backup', 'vaults'] as const).map((section) => (
+          {(['security', 'backup', 'vaults', 'sync'] as const).map((section) => (
             <button
               key={section}
               onClick={() => setActiveSection(section)}
@@ -321,7 +437,7 @@ export function SettingsModal({
                   : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
               }`}
             >
-              {section === 'security' ? 'Security' : section === 'backup' ? 'Backup' : 'Vaults'}
+              {section === 'security' ? 'Security' : section === 'backup' ? 'Backup' : section === 'vaults' ? 'Vaults' : 'Sync'}
             </button>
           ))}
         </div>
@@ -752,6 +868,170 @@ export function SettingsModal({
                   <p className="text-[11px] text-[var(--text-muted)] mt-2">
                     You cannot delete your only vault. Create another vault first.
                   </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'sync' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Anonymous Sync</h3>
+                </div>
+                <p className="text-[var(--text-tertiary)] text-[12px] mb-3 ml-[22px]">
+                  Sync across devices. No account. No email. No tracking.
+                </p>
+
+                <div className="px-3 py-3 rounded-lg bg-[var(--surface)] mb-4">
+                  <div className="flex items-start gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" className="mt-0.5 flex-shrink-0">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">
+                      <p>A unique token is generated locally and stored only on your devices.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {syncStatus?.enabled ? (
+                  <div className="space-y-4">
+                    <div className="px-3 py-3 rounded-lg bg-[var(--success-light)] border border-[rgba(22,163,74,0.12)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          <span className="text-[13px] font-medium text-[var(--text-primary)]">Sync enabled</span>
+                        </div>
+                        <span className="text-[11px] text-[var(--text-muted)]">
+                          Last: {formatLastSync(syncStatus.lastSyncAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleTriggerSync}
+                        disabled={syncing}
+                        className="flex-1 py-2.5 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {syncing ? (
+                          <>
+                            <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                            </svg>
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.15" />
+                            </svg>
+                            Sync now
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleDisableSync}
+                        className="py-2.5 px-4 border border-[var(--danger)] text-[var(--danger)] rounded-lg text-[13px] font-medium hover:bg-[var(--danger-light)] transition-colors"
+                      >
+                        Disable
+                      </button>
+                    </div>
+
+                    <div className="px-3 py-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                      <p className="text-[11px] text-[var(--text-tertiary)] mb-2">
+                        <strong className="text-[var(--text-primary)]">Your sync token:</strong> Save this to sync other devices.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={syncStatus.authToken || '••••••••••••••••'}
+                          className="flex-1 bg-[var(--void-elevated)] text-[var(--text-secondary)] text-[11px] font-mono rounded-lg px-3 py-2 border border-[var(--border)]"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(syncStatus.authToken || '')
+                            showFeedback('Token copied')
+                          }}
+                          className="px-3 py-2 border border-[var(--border)] text-[var(--text-secondary)] rounded-lg text-[12px] hover:bg-[var(--surface)] transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    {syncStatus.status === 'error' && syncStatus.error && (
+                      <div className="px-3 py-2.5 rounded-lg bg-[var(--danger-light)] border border-[rgba(220,38,38,0.12)]">
+                        <p className="text-[12px] text-[var(--danger)]">{syncStatus.error}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleEnableSync}
+                      disabled={testingConnection}
+                      className="w-full py-3 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {testingConnection ? (
+                        <>
+                          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                          </svg>
+                          Creating token...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Enable Anonymous Sync
+                        </>
+                      )}
+                    </button>
+
+                    <div className="px-3 py-3 rounded-lg bg-[var(--surface)]">
+                      <div className="flex items-start gap-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" className="mt-0.5 flex-shrink-0">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        <div className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
+                          <p>Your token is generated locally and never leaves your device unhashed.</p>
+                          <p className="mt-1"><strong>Backup your token</strong> to sync other devices.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-[var(--border)]" />
+
+                    <div>
+                      <p className="text-[11px] text-[var(--text-tertiary)] mb-2">Already have a token? Import it:</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={cloudflareConfig.apiToken}
+                          onChange={(e) => setCloudflareConfig(prev => ({ ...prev, apiToken: e.target.value }))}
+                          placeholder="Paste your sync token"
+                          className="flex-1 bg-[var(--surface)] text-[var(--text-primary)] text-[13px] rounded-lg px-3 py-2.5 border border-[var(--border)] focus:border-[var(--accent)] focus:outline-none transition-colors"
+                        />
+                        <button
+                          onClick={handleEnableSync}
+                          disabled={!cloudflareConfig.apiToken}
+                          className="px-4 py-2.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          Import
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

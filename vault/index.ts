@@ -1,15 +1,13 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 export type { VaultData, VaultVersion, VaultEntry, VaultDevice, VaultSettings } from "./types";
 export type { EncryptedVault, VaultMetadata, RecoveryData, VaultStorage } from "./types";
+export type { CloudflareD1Config, SyncStatus, SyncResult } from "./types";
 export type { Migration } from "./types";
 
 export { Vault } from "./vault";
 export { VaultManager } from "./manager";
-export { VaultStorageManager, LocalStorageAdapter, RemoteStorageAdapter } from "./storage";
+export { VaultStorageManager, LocalStorageAdapter, RemoteStorageAdapter, CloudflareD1Adapter } from "./storage";
 export {
   generateSalt,
   generateVaultKey,

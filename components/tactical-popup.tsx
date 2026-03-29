@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useEffect, useRef } from "react"
 
@@ -117,7 +114,7 @@ export default function TacticalPopup({
 
           <div className="px-4 py-3 border-t border-subtle">
             <div className="flex items-center justify-between text-xs text-muted">
-              <span>V1.0.0 // LOCAL</span>
+              <span>V1.0.0</span>
               <span>ENCRYPTED: AES-256-GCM</span>
             </div>
           </div>

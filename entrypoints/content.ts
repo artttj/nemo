@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { defineContentScript } from 'wxt/sandbox'
 
@@ -140,6 +137,7 @@ export default defineContentScript({
         overlayElement = document.createElement('div')
         overlayElement.innerHTML = `
           <div style="
+            position: fixed;
             z-index: 2147483647;
             background: ${colors.darkBg};
             border: 1px solid ${colors.border};
@@ -158,6 +156,7 @@ export default defineContentScript({
         overlayElement = document.createElement('div')
         overlayElement.innerHTML = `
           <div style="
+            position: fixed;
             z-index: 2147483647;
             background: ${colors.darkBg};
             border: 1px solid ${colors.border};
@@ -283,11 +282,9 @@ export default defineContentScript({
         right = 16
       }
 
-      innerContainer.style.cssText = innerContainer.style.cssText.replace(/position:[^;]+;/, '').replace(/top:[^;]+;/, '').replace(/right:[^;]+;/, '') + `
-        position: fixed;
-        top: ${top}px;
-        right: ${right}px;
-      `
+      innerContainer.style.position = 'fixed'
+      innerContainer.style.top = `${top}px`
+      innerContainer.style.right = `${right}px`
     }
 
     function hideOverlay() {
@@ -602,7 +599,7 @@ export default defineContentScript({
       window.addEventListener('scroll', debouncedUpdate, { passive: true })
       window.addEventListener('resize', debouncedUpdate)
 
-      // Appended to body to avoid breaking field layout in forms
+      
       document.body.appendChild(button)
       document.body.appendChild(genButton)
 
@@ -702,7 +699,7 @@ export default defineContentScript({
         window.removeEventListener('resize', debouncedUpdate)
       }
 
-      // Watches for field removal from DOM at any ancestor level
+      
       const cleanupObserver = new MutationObserver(() => {
         if (!field.isConnected) {
           cleanup()

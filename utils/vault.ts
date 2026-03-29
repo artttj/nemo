@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import type { Vault, VaultMetadata, VaultEntry, VaultInfo, VaultRegistry, EntryHistory } from "./types"
 import type { RecoveryData } from "../vault/types"
@@ -204,7 +201,7 @@ export async function deleteVaultFromRegistry(vaultId: string): Promise<boolean>
     const dirName = getVaultDirName(vaultId)
     await root.removeEntry(dirName, { recursive: true })
   } catch {
-    // Directory might not exist
+    
   }
   
   return true

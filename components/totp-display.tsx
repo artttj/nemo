@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { generateTOTP, type TOTPConfig, type TOTPCode } from '~/utils/totp'
@@ -24,7 +21,7 @@ export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProp
     try {
       const newCode = await generateTOTP(config)
       setCode(prev => {
-        // Only update if code actually changed
+        
         if (prev?.code !== newCode.code) {
           return newCode
         }
@@ -39,19 +36,19 @@ export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProp
   }, [config])
 
   useEffect(() => {
-    // Generate code on mount and when period boundary hits
+    
     const checkAndUpdate = async () => {
       const now = Math.floor(Date.now() / 1000)
       const secondsIntoPeriod = now % period
       const secondsRemaining = period - secondsIntoPeriod
       const currentProgress = secondsRemaining / period
 
-      // Generate new code if we're at a new period
+      
       if (now - lastGeneratedRef.current >= period || lastGeneratedRef.current === 0) {
         lastGeneratedRef.current = now
         await updateCode()
       } else {
-        // Just update the countdown
+        
         setRemainingSeconds(secondsRemaining)
         setProgress(currentProgress)
       }
@@ -59,7 +56,7 @@ export function TOTPDisplay({ config, onCopy, compact = false }: TOTPDisplayProp
 
     checkAndUpdate()
 
-    // Update countdown every second, but only regenerate code at period boundary
+    
     const interval = setInterval(checkAndUpdate, 1000)
     return () => clearInterval(interval)
   }, [config, period, updateCode])

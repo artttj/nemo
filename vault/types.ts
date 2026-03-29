@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 export type VaultVersion = 1;
 
@@ -84,6 +81,29 @@ export interface VaultStorage {
   loadMetadata(): Promise<VaultMetadata | null>
   saveMetadata(metadata: VaultMetadata): Promise<void>
   exists(): Promise<boolean>
+}
+
+export interface CloudflareD1Config {
+  accountId: string
+  databaseId: string
+  apiToken: string
+  enabled: boolean
+  lastSyncAt?: number
+  syncOnChange: boolean
+}
+
+export interface SyncStatus {
+  status: 'idle' | 'syncing' | 'error' | 'success'
+  lastSyncAt?: number
+  error?: string
+  pendingChanges: boolean
+}
+
+export interface SyncResult {
+  success: boolean
+  direction?: 'upload' | 'download' | 'conflict'
+  error?: string
+  timestamp: number
 }
 
 export interface KeyBackup {

@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { base64ToBuffer } from './crypto'
 import { webAuthnRegister, webAuthnAuthenticate } from './webauthn-handler'

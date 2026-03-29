@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { defineBackground } from 'wxt/sandbox'
 import type { Message, MessageResponse } from '../utils/types'
@@ -36,7 +33,15 @@ import {
   deleteVault,
   handleGetSitePreferences,
   handleSetSitePreferences,
-  handleDeleteSitePreferences
+  handleDeleteSitePreferences,
+  handleCloudflareSync,
+  handleSyncStatus,
+  handleTestCloudflareConnection,
+  handleDisableCloudflareSync,
+  handleTestCustomBackendConnection,
+  handleCustomBackendSync,
+  handleDisableCustomBackendSync,
+  handleCustomBackendSyncStatus
 } from '../utils/vault-ops'
 import { authenticateWithCredential, getStoredCredentialId } from '../utils/auth'
 import { loadVaultMetadata, loadVaultKey } from '../utils/vault'
@@ -59,7 +64,7 @@ export default defineBackground({
       }
     )
 
-    // Handle keyboard shortcut commands
+    
     chrome.commands?.onCommand?.addListener((command) => {
       if (command === 'lock_vault') {
         lockVault().catch(console.error)
@@ -238,6 +243,36 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
 
     case 'DELETE_SITE_PREFERENCES':
       return handleDeleteSitePreferences(message.payload as string)
+
+    case 'TEST_CLOUDFLARE_CONNECTION':
+      return handleTestCloudflareConnection(message.payload as { accountId: string; databaseId: string; apiToken: string })
+
+    case 'ENABLE_CLOUDFLARE_SYNC':
+      return handleCloudflareSync(message.payload as { accountId: string; databaseId: string; apiToken: string; syncOnChange: boolean })
+
+    case 'DISABLE_CLOUDFLARE_SYNC':
+      return handleDisableCloudflareSync()
+
+    case 'GET_SYNC_STATUS':
+      return handleSyncStatus()
+
+    case 'TRIGGER_SYNC':
+      return handleCloudflareSync()
+
+    case 'TEST_CUSTOM_BACKEND_CONNECTION':
+      return handleTestCustomBackendConnection(message.payload as { baseUrl: string })
+
+    case 'ENABLE_CUSTOM_BACKEND_SYNC':
+      return handleCustomBackendSync(message.payload as { baseUrl: string; syncOnChange: boolean })
+
+    case 'DISABLE_CUSTOM_BACKEND_SYNC':
+      return handleDisableCustomBackendSync()
+
+    case 'GET_CUSTOM_BACKEND_SYNC_STATUS':
+      return handleCustomBackendSyncStatus()
+
+    case 'TRIGGER_CUSTOM_BACKEND_SYNC':
+      return handleCustomBackendSync()
 
     default:
       return { success: false, error: 'Unknown message type' }

@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import type { RecoveryData } from "./types"
 import { wrapVaultKey, unwrapVaultKey } from "../utils/crypto"
@@ -235,7 +232,7 @@ function wordsToEntropy(phrase: string): Uint8Array {
     }
   }
 
-  // Use 132 bits (17 bytes, last 4 bits unused) to match generateRecoveryPhrase
+  
   const entropy = new Uint8Array(17)
   for (let i = 0; i < 132; i++) {
     if (bits[i]) {

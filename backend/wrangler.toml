@@ -1,0 +1,26 @@
+# Cloudflare Workers configuration for Nemo Sync
+# Deploy: wrangler deploy
+
+name = "nemo-sync"
+main = "worker.ts"
+compatibility_date = "2024-01-01"
+
+# Free tier: 100k requests/day
+# Pro tier: $5/month for 10M requests
+
+[[d1_databases]]
+binding = "NEMO_SYNC"
+database_name = "nemo-sync-db"
+database_id = "your-database-id-here"  # Get from: wrangler d1 create nemo-sync-db
+
+# Environment variables (optional)
+[vars]
+# Set to your extension's origin for production
+# ALLOWED_ORIGIN = "chrome-extension://your-extension-id"
+ALLOWED_ORIGIN = "*"  # Allow all origins during development
+
+# Rate limiting (built into worker code)
+# Max 100 requests per IP per 15 minutes
+
+[build]
+command = ""

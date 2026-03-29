@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useEffect, useRef } from 'react'
 import type { VaultEntry } from '~/utils/types'
@@ -70,7 +67,7 @@ export function EntryCard({
       className="relative animate-entry-reveal"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      {/* Main card */}
+      {}
       <div
         onClick={() => setExpanded(!expanded)}
         onMouseEnter={() => setIsHovered(true)}
@@ -82,9 +79,9 @@ export function EntryCard({
           boxShadow: isHovered && !expanded ? '0 4px 20px rgba(0,0,0,0.2)' : 'none'
         }}
       >
-        {/* Card header */}
+        {}
         <div className="flex items-center gap-4 px-5 py-4">
-          {/* Avatar */}
+          {}
           <div 
             className="flex-shrink-0 w-11 h-11 flex items-center justify-center font-display text-[18px] transition-transform duration-300"
             style={{ 
@@ -97,7 +94,7 @@ export function EntryCard({
             {initial}
           </div>
 
-          {/* Info */}
+          {}
           <div className="flex-1 min-w-0">
             <h3 
               className="font-display text-[15px] font-medium truncate tracking-tight transition-colors"
@@ -112,7 +109,7 @@ export function EntryCard({
               {domain || entry.username || 'Credential'}
             </p>          </div>
 
-          {/* Expand chevron */}
+          {}
           <div
             className="flex-shrink-0 transition-transform duration-300"
             style={{ 
@@ -126,14 +123,14 @@ export function EntryCard({
           </div>
         </div>
 
-        {/* Expanded content */}
+        {}
         {expanded && (
           <div 
             className="px-5 pb-5 animate-expand"
             style={{ borderTop: '1px solid var(--border-subtle)' }}
           >
             <div className="pt-4 space-y-4">
-              {/* Domain / URL */}
+              {}
               {domain && (
                 <div className="flex items-center gap-2">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
@@ -145,7 +142,7 @@ export function EntryCard({
                   </p>                </div>
               )}
 
-              {/* Username field */}
+              {}
               {entry.username && (
                 <div 
                   className="flex items-center justify-between p-3"
@@ -167,7 +164,7 @@ export function EntryCard({
                   </button>                </div>
               )}
 
-              {/* Password field */}
+              {}
               {entry.password && (
                 <div 
                   className="flex items-center justify-between p-3"
@@ -199,7 +196,7 @@ export function EntryCard({
                     </button>                  </div>                </div>
               )}
 
-              {/* Notes */}
+              {}
               {entry.notes && (
                 <div 
                   className="p-3"
@@ -213,7 +210,7 @@ export function EntryCard({
                   </p>                </div>
               )}
 
-              {/* Tags */}
+              {}
               {entry.tags && entry.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {entry.tags.map((tag) => (
@@ -230,7 +227,7 @@ export function EntryCard({
                 </div>
               )}
 
-              {/* Actions */}
+              {}
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit?.() }}

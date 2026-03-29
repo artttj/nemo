@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { VaultEntry, VaultRegistry } from '~/utils/types'
@@ -72,12 +69,12 @@ export default function App() {
     loadStateWithRetry()
   }, [])
 
-  // Poll for state changes (e.g., after WebAuthn redirect)
+  
   useEffect(() => {
     if (state.isUnlocked) return
 
     let pollCount = 0
-    const maxPolls = 20 // Poll for up to 10 seconds (20 * 500ms)
+    const maxPolls = 20 
 
     const poll = async () => {
       try {
@@ -376,7 +373,7 @@ export default function App() {
       .sort((a: any, b: any) => b.updatedAt - a.updatedAt)
   }, [allEntries, searchQuery, activeFilter])
 
-  // Keyboard navigation
+  
   useEffect(() => {
     if (!state.isUnlocked) return
     if (showAddModal || showSettings || viewingEntry) return
@@ -411,7 +408,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [state.isUnlocked, filteredEntries, selectedIndex, showAddModal, showSettings, viewingEntry])
 
-  // Scroll selected element into view after keyboard navigation
+  
   useEffect(() => {
     if (selectedIndex >= 0) {
       const element = document.querySelector(`[data-selected="true"]`) as HTMLElement

@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { useState, useCallback } from 'react'
 import { parseTOTPUri, isValidTOTPSecret, formatTOTPSecret, type TOTPConfig } from '~/utils/totp'
@@ -15,10 +12,6 @@ interface TOTPSetupProps {
 const MIN_SECRET_CHARS = 16
 const SECRET_DISPLAY_GROUP_SIZE = 4
 
-/**
- * Component for setting up TOTP 2FA.
- * Supports both QR code URI scanning and manual secret entry.
- */
 export function TOTPSetup({ onSave, onCancel, existingConfig }: TOTPSetupProps) {
   const [mode, setMode] = useState<'scan' | 'manual'>('scan')
   const [secret, setSecret] = useState(existingConfig?.secret || '')

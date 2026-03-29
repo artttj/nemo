@@ -1,7 +1,4 @@
-/**
- * Copyright 2024-2026 Artem Iagovdik <artyom.yagovdik@gmail.com>
- * SPDX-License-Identifier: Apache-2.0
- */
+
 
 import { wrapVaultKey, unwrapVaultKey } from "../utils/crypto"
 import { generateRandomBytes, bufferToBase64, base64ToBuffer } from "../utils/crypto"
@@ -9,7 +6,7 @@ import type { PinData } from "./types"
 
 const PIN_KEY_PREFIX = "nemo_pin_"
 const MAX_PIN_ATTEMPTS = 5
-const PIN_LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
+const PIN_LOCKOUT_DURATION_MS = 30 * 60 * 1000 
 
 export interface PinSetupResult {
   success: boolean

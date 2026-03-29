@@ -1,6 +1,6 @@
 # Nemo Password Manager
 
-A local-first password manager extension. No accounts, no cloud sync, no tracking. Your passwords stay on your device, encrypted with keys only you control.
+A local-first password manager extension. No accounts, no tracking. Your passwords stay encrypted with keys only you control. Optional Cloudflare D1 sync for cross-device access.
 
 ## Disclaimer
 
@@ -19,8 +19,9 @@ Export your vault regularly. You are responsible for your own backups.
 - 12-word recovery phrases (BIP-39)
 - Auto-fill on login pages
 - Export/import for backups
+- Optional Cloudflare D1 sync for cross-device access
 
-![Nemo extension popup](images/locked.png)
+<img src="images/locked.png" alt="Nemo extension popup" height="400" />
 
 ## Tech
 
@@ -47,6 +48,12 @@ pnpm build
 ```
 
 Firefox: `pnpm dev:firefox`
+
+## Cloudflare D1 Sync (Optional)
+
+You can sync your encrypted vault across devices using Cloudflare D1. Your data remains encrypted end-to-end - Cloudflare only stores the ciphertext.
+
+See [CLOUDFLARE_SYNC.md](CLOUDFLARE_SYNC.md) for setup instructions.
 
 ## How encryption works
 
@@ -130,7 +137,7 @@ Create multiple vaults, unlock with passkey or PIN, add/edit/delete entries, aut
 
 ## What doesn't
 
-No cloud sync. No cross-device sharing (yet). WebAuthn PRF support varies by browser. Safari works but has quirks.
+WebAuthn PRF support varies by browser. Safari works but has quirks.
 
 ## License
 
