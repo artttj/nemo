@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Lock } from 'lucide-react'
 import type { VaultEntry, VaultRegistry } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
 import { getDomain } from '~/utils/url'
@@ -619,10 +620,7 @@ function AppContent() {
               className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors rounded-lg"
               title="Lock vault"
             >
-              <svg width="17" height="17" viewBox="0 0 128 128" fill="none">
-                <path d="M64 28c-19.882 0-36 16.118-36 36v28c0 4.418 3.582 8 8 8h56c4.418 0 8-3.582 8-8V64c0-19.882-16.118-36-36-36zm0 12c13.255 0 24 10.745 24 24v4H40v-4c0-13.255 10.745-24 24-24z" fill="currentColor"/>
-                <circle cx="64" cy="80" r="8" fill="currentColor"/>
-              </svg>
+              <Lock size={17} />
             </button>
             <button
               onClick={() => setShowSettings(true)}
