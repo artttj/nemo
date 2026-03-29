@@ -17,6 +17,7 @@ import {
   setCurrentVaultState,
   resetAutoLock
 } from "./session"
+import { startPeriodicSync, syncOnUnlock } from "./sync-manager"
 
 export async function setupVaultPin(pin: string, vaultKey?: CryptoKey): Promise<MessageResponse> {
   try {
@@ -84,6 +85,8 @@ export async function unlockVaultWithPin(pin: string): Promise<MessageResponse<V
 
     await storePinData({ ...pinData, attemptsRemaining: 5, lockedUntil: null })
     resetAutoLock()
+    startPeriodicSync()
+    syncOnUnlock().catch(() => {})
 
     return { success: true, data: vault }
   } catch (error) {

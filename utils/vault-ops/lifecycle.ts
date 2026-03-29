@@ -33,6 +33,7 @@ import {
   resetAutoLock,
   INITIAL_VAULT
 } from "./session"
+import { startPeriodicSync, stopPeriodicSync, syncOnUnlock } from "./sync-manager"
 
 export async function checkVaultExists(): Promise<{ exists: boolean; hasCredential: boolean }> {
   const { hasStoredCredential } = await import('../auth')
@@ -159,6 +160,8 @@ export async function unlockVault(): Promise<MessageResponse<Vault>> {
     })
 
     resetAutoLock()
+    startPeriodicSync()
+    syncOnUnlock().catch(() => {})
 
     return { success: true, data: vault }
   } catch (error) {
@@ -202,6 +205,8 @@ export async function unlockVaultFromRecovery(phrase: string): Promise<MessageRe
     })
 
     resetAutoLock()
+    startPeriodicSync()
+    syncOnUnlock().catch(() => {})
 
     return { success: true, data: vault }
   } catch (error) {
@@ -213,6 +218,7 @@ export async function unlockVaultFromRecovery(phrase: string): Promise<MessageRe
 }
 
 export async function lockVault(): Promise<MessageResponse> {
+  stopPeriodicSync()
   await lockSession()
   return { success: true }
 }

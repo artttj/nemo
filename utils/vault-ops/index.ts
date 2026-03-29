@@ -28,7 +28,6 @@ export {
   removeVaultPin
 } from "./pin-ops"
 export {
-  triggerAutoSync,
   handleTestCustomBackendConnection,
   handleCustomBackendSync,
   handleDisableCustomBackendSync,
@@ -38,6 +37,20 @@ export {
   handleDisableCloudflareSync,
   handleSyncStatus
 } from "./sync-ops"
+export {
+  triggerAutoSync,
+  startPeriodicSync,
+  stopPeriodicSync,
+  syncOnUnlock,
+  syncWithRetry,
+  getQueuedSync,
+  clearQueuedSync,
+  getRetryState,
+  clearRetryState,
+  shouldShowBackupReminder,
+  markBackupReminderShown,
+  resetBackupReminder
+} from "./sync-manager"
 export {
   verifyRecoveryPhrase,
   getRecoveryStatus,

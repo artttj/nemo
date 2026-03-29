@@ -45,7 +45,10 @@ import {
   verifyRecoveryPhrase,
   getRecoveryStatus,
   updateRecoveryVerified,
-  dismissRecoveryReminder
+  dismissRecoveryReminder,
+  shouldShowBackupReminder,
+  markBackupReminderShown,
+  resetBackupReminder
 } from '../utils/vault-ops'
 import { authenticateWithCredential, getStoredCredentialId } from '../utils/auth'
 import { loadVaultMetadata, loadVaultKey } from '../utils/vault'
@@ -300,6 +303,17 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
 
     case 'DISMISS_RECOVERY_REMINDER':
       return dismissRecoveryReminder()
+
+    case 'SHOULD_SHOW_BACKUP_REMINDER':
+      return { success: true, data: await shouldShowBackupReminder() }
+
+    case 'MARK_BACKUP_REMINDER_SHOWN':
+      await markBackupReminderShown()
+      return { success: true }
+
+    case 'RESET_BACKUP_REMINDER':
+      await resetBackupReminder()
+      return { success: true }
 
     default:
       return { success: false, error: 'Unknown message type' }

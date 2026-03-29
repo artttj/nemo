@@ -13,7 +13,7 @@ import {
   importVault
 } from "../vault"
 import { getSessionKey, getCurrentVaultState } from "./session"
-import { triggerAutoSync } from "./sync-ops"
+import { triggerAutoSync } from "./sync-manager"
 
 export async function handleAddEntry(entry: Omit<VaultEntry, "id" | "createdAt" | "updatedAt">): Promise<MessageResponse<VaultEntry>> {
   try {
@@ -30,7 +30,7 @@ export async function handleAddEntry(entry: Omit<VaultEntry, "id" | "createdAt" 
     vaultState.lastActivity = Date.now()
 
     const newEntry = newVault.entries[newVault.entries.length - 1]
-    triggerAutoSync()
+    await triggerAutoSync()
     return { success: true, data: newEntry }
   } catch (error) {
     return {
@@ -55,7 +55,7 @@ export async function handleUpdateEntry(id: string, updates: Partial<VaultEntry>
     vaultState.lastActivity = Date.now()
 
     const entry = newVault.entries.find((e) => e.id === id)
-    triggerAutoSync()
+    await triggerAutoSync()
     return { success: true, data: entry }
   } catch (error) {
     return {
@@ -79,7 +79,7 @@ export async function handleDeleteEntry(id: string): Promise<MessageResponse> {
     vaultState.vault = newVault
     vaultState.lastActivity = Date.now()
 
-    triggerAutoSync()
+    await triggerAutoSync()
     return { success: true }
   } catch (error) {
     return {

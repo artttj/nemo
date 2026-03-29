@@ -401,17 +401,20 @@ export async function saveVault(vault: Vault, key: CryptoKey): Promise<void> {
 export async function exportVault(key: CryptoKey): Promise<string> {
   const vault = await loadVault(key)
   if (!vault) throw new Error("No vault found")
-  
+
   const metadata = await loadVaultMetadata()
   if (!metadata) throw new Error("No metadata found")
 
+  const recoveryData = await loadRecoveryData()
+
   const { ciphertext, iv } = await encrypt(JSON.stringify({
     vault,
-    metadata
+    metadata,
+    recoveryData
   }), key)
 
   return JSON.stringify({
-    version: "1.0.0",
+    version: "1.1.0",
     exportedAt: Date.now(),
     data: { ciphertext, iv }
   })
@@ -423,12 +426,17 @@ export async function importVault(
 ): Promise<{ vault: Vault; metadata: VaultMetadata }> {
   const parsed = JSON.parse(exportedData)
 
+  const supportedVersions = ["1.0.0", "1.1.0"]
+  if (parsed.version && !supportedVersions.includes(parsed.version)) {
+    throw new Error(`Unsupported backup version: ${parsed.version}. Supported versions: ${supportedVersions.join(", ")}`)
+  }
+
   if (!parsed.data?.ciphertext || !parsed.data?.iv) {
     throw new Error("Invalid backup format")
   }
 
   const decrypted = await decrypt(parsed.data.ciphertext, parsed.data.iv, key)
-  const { vault, metadata } = JSON.parse(decrypted)
+  const { vault, metadata, recoveryData } = JSON.parse(decrypted)
 
   if (!metadata?.vaultId || typeof metadata.vaultId !== 'string' ||
       !metadata?.name || typeof metadata.name !== 'string' ||
@@ -461,6 +469,10 @@ export async function importVault(
   const metadataWriter = await metadataFile.createWritable()
   await metadataWriter.write(JSON.stringify(metadata, null, 2))
   await metadataWriter.close()
+
+  if (recoveryData) {
+    await storeRecoveryData(recoveryData)
+  }
 
   return { vault, metadata }
 }

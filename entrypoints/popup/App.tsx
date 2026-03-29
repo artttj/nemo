@@ -619,9 +619,9 @@ function AppContent() {
               className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors rounded-lg"
               title="Lock vault"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 1 1 10 0v4" />
+              <svg width="17" height="17" viewBox="0 0 128 128" fill="none">
+                <path d="M64 28c-19.882 0-36 16.118-36 36v28c0 4.418 3.582 8 8 8h56c4.418 0 8-3.582 8-8V64c0-19.882-16.118-36-36-36zm0 12c13.255 0 24 10.745 24 24v4H40v-4c0-13.255 10.745-24 24-24z" fill="currentColor"/>
+                <circle cx="64" cy="80" r="8" fill="currentColor"/>
               </svg>
             </button>
             <button

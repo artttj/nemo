@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { RefreshCw, ChevronDown, Loader2, Lock, Check, Database, Cloud, Trash2, AlertCircle } from 'lucide-react'
+import { RefreshCw, ChevronDown, Loader2, Lock, Check, Database, Cloud, Trash2, AlertCircle, ChevronRight } from 'lucide-react'
 import type { VaultSettings, VaultRegistry } from '~/utils/types'
 
 interface CloudflareConfig {
@@ -216,6 +216,7 @@ export function SettingsModal({
 
   const [showSyncToken, setShowSyncToken] = useState(false)
   const [showImportToken, setShowImportToken] = useState(false)
+  const [showAutoLock, setShowAutoLock] = useState(false)
 
   const currentAutoLock = settings?.autoLockMinutes ?? 15
 
@@ -574,78 +575,76 @@ export function SettingsModal({
             <button
               key={section}
               onClick={() => setActiveSection(section)}
-              className={`flex-1 py-2.5 text-[13px] font-medium rounded-md transition-all ${
+              className={`flex-1 py-2 text-[13px] font-medium rounded-md transition-all relative ${
                 activeSection === section
-                  ? 'bg-[var(--void-elevated)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               {section === 'security' ? 'Security' : section === 'backup' ? 'Backup' : section === 'vaults' ? 'Vaults' : 'Sync'}
+              {activeSection === section && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-[var(--accent)] rounded-full" />
+              )}
             </button>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {activeSection === 'security' && (
-            <div className="space-y-8 animate-fade-in">
-              <div>
-                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">Auto-lock</h3>
-                <p className="text-[var(--text-tertiary)] text-[12px] mb-3">
+            <div className="space-y-3 animate-fade-in">
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">Auto-lock</h3>
+                  <span className="text-[13px] font-medium text-[var(--accent)]">
+                    {autoLockOptions.find(o => o.value === currentAutoLock)?.label}
+                  </span>
+                </div>
+                <p className="text-[12px] text-[var(--text-secondary)] mb-3">
                   Lock your vault after inactivity
                 </p>
-                <div className="space-y-0.5">
+                <div className="flex flex-wrap gap-2">
                   {autoLockOptions.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => handleAutoLockChange(opt.value)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] transition-colors ${
+                      className={`px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
                         currentAutoLock === opt.value
-                          ? 'bg-[var(--surface)] text-[var(--text-primary)]'
-                          : 'text-[var(--text-secondary)] hover:bg-[var(--surface)]'
+                          ? 'bg-[var(--accent)] text-[var(--void)]'
+                          : 'bg-[var(--void-elevated)] text-[var(--text-secondary)] hover:bg-[var(--border)]'
                       }`}
                     >
-                      <span className="font-medium">{opt.label}</span>
-                      {currentAutoLock === opt.value && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
+                      {opt.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="h-px bg-[var(--border)]" />
-
-              <div>
-                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">PIN code</h3>
-                <p className="text-[var(--text-tertiary)] text-[12px] mb-3">
-                  Quick unlock with a numeric PIN. Biometric auth still works.
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                <h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">PIN Code</h3>
+                <p className="text-[12px] text-[var(--text-secondary)] mb-3">
+                  Use a PIN for faster unlock. Biometrics still available.
                 </p>
 
                 {pinStep === 'idle' && !hasPinSetup && (
                   <button
                     onClick={() => setPinStep('enter')}
-                    className="w-full flex items-center justify-between px-3 py-3 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors"
+                    className="w-full py-2.5 text-[13px] font-medium bg-[var(--accent)] text-[var(--void)] rounded-lg hover:opacity-90 transition-opacity"
                   >
-                    <span className="text-[13px] font-medium text-[var(--text-secondary)]">Set up PIN code</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
+                    Set up PIN
                   </button>
                 )}
 
                 {pinStep === 'idle' && hasPinSetup && (
-                  <div className="flex items-center justify-between px-3 py-3 rounded-lg border border-[var(--border)]">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      <span className="text-[13px] font-medium text-[var(--text-primary)]">PIN code enabled</span>
+                      <span className="text-[13px] text-[var(--text-primary)]">PIN enabled</span>
                     </div>
                     <button
                       onClick={() => setShowRemovePinConfirm(true)}
-                      className="min-h-[44px] px-2 text-[12px] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
+                      className="text-[12px] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                     >
                       Remove
                     </button>
@@ -653,7 +652,7 @@ export function SettingsModal({
                 )}
 
                 {pinStep !== 'idle' && (
-                  <div className="px-3 py-4 rounded-lg border border-[var(--border)] bg-[var(--void-elevated)]">
+                  <div className="pt-2">
                     <label className="block text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
                       {pinStep === 'enter' ? 'Enter new PIN' : 'Confirm PIN'}
                     </label>

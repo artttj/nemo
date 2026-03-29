@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react'
-import { MoveLeft, User } from 'lucide-react'
+import { MoveLeft, User, Lock, Fingerprint } from 'lucide-react'
 import { useBiometricType } from '~/utils/biometric'
 
 interface LockedViewProps {
@@ -352,11 +352,7 @@ export function LockedView({
       {isUnlocking && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[var(--void)] animate-scale-in">
           <div className="text-center">
-            <div className="w-11 h-11 mx-auto mb-3 rounded-xl bg-[var(--accent)] flex items-center justify-center nemo-brand-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </div>
+            <img src="/icon-128.png" alt="Nemo" className="w-11 h-11 mx-auto mb-3" />
             <p className="text-[var(--text-primary)] font-semibold text-sm">Unlocking...</p>
           </div>
         </div>
@@ -364,12 +360,7 @@ export function LockedView({
 
       <div className="flex-1 flex flex-col items-center justify-center w-full px-10">
         <div className="w-full max-w-[280px] flex flex-col items-center">
-          <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center nemo-brand-icon mb-8">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          </div>
+          <img src="/icon-128.png" alt="Nemo" className="w-11 h-11 mb-8" />
 
           <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-6 text-center">
             {showFirstTime ? 'Create your vault' : 'Unlock your vault'}
@@ -384,11 +375,22 @@ export function LockedView({
           <button
             onClick={getMainAction()}
             disabled={loading !== null}
-            className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {loading === 'create' || loading === 'unlock'
-              ? 'Verifying...'
-              : getBiometricLabel()}
+            {loading === 'create' || loading === 'unlock' ? (
+              'Verifying...'
+            ) : (
+              <>
+                {showFirstTime ? (
+                  <Lock size={16} />
+                ) : biometricAvailable ? (
+                  <Fingerprint size={16} />
+                ) : (
+                  <Lock size={16} />
+                )}
+                {getBiometricLabel()}
+              </>
+            )}
           </button>
 
           {hasPinSetup && !showFirstTime && (
