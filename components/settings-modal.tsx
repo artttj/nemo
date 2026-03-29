@@ -213,6 +213,9 @@ export function SettingsModal({
   const [testingConnection, setTestingConnection] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
+  const [showSyncToken, setShowSyncToken] = useState(false)
+  const [showImportToken, setShowImportToken] = useState(false)
+
   const currentAutoLock = settings?.autoLockMinutes ?? 15
 
   const autoLockOptions = [
@@ -581,40 +584,29 @@ export function SettingsModal({
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {activeSection === 'security' && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-8 animate-fade-in">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Auto-lock</h3>
-                </div>
-                <p className="text-[var(--text-tertiary)] text-[12px] mb-3 ml-[22px]">
-                  Lock your vault after inactivity.
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">Auto-lock</h3>
+                <p className="text-[var(--text-tertiary)] text-[12px] mb-3">
+                  Lock your vault after inactivity
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {autoLockOptions.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => handleAutoLockChange(opt.value)}
-                      className={`w-full flex items-center justify-between px-3 py-3 rounded-lg text-[13px] transition-colors ${
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[13px] transition-colors ${
                         currentAutoLock === opt.value
-                          ? 'bg-[var(--accent)] text-[var(--accent-text)]'
+                          ? 'bg-[var(--surface)] text-[var(--text-primary)]'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--surface)]'
                       }`}
                     >
                       <span className="font-medium">{opt.label}</span>
-                      <span className={`text-[11px] ${
-                        currentAutoLock === opt.value ? 'text-[var(--accent-text)] opacity-70' : 'text-[var(--text-muted)]'
-                      }`}>
-                        {currentAutoLock === opt.value && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" className="inline mr-1">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                        {opt.hint}
-                      </span>
+                      {currentAutoLock === opt.value && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -623,21 +615,15 @@ export function SettingsModal({
               <div className="h-px bg-[var(--border)]" />
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">PIN code</h3>
-                </div>
-                <p className="text-[var(--text-tertiary)] text-[12px] mb-3 ml-[22px]">
-                  Quick unlock with a numeric PIN. Biometric auth remains available.
+                <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">PIN code</h3>
+                <p className="text-[var(--text-tertiary)] text-[12px] mb-3">
+                  Quick unlock with a numeric PIN. Biometric auth still works.
                 </p>
 
                 {pinStep === 'idle' && !hasPinSetup && (
                   <button
                     onClick={() => setPinStep('enter')}
-                    className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between px-3 py-3 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors"
                   >
                     <span className="text-[13px] font-medium text-[var(--text-secondary)]">Set up PIN code</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2">
@@ -647,137 +633,127 @@ export function SettingsModal({
                 )}
 
                 {pinStep === 'idle' && hasPinSetup && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between px-3 py-3.5 rounded-lg bg-[var(--success-light)] border border-[rgba(22,163,74,0.12)]">
-                      <div className="flex items-center gap-2">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        <span className="text-[13px] font-medium text-[var(--text-primary)]">PIN code enabled</span>
-                      </div>
+                  <div className="flex items-center justify-between px-3 py-3 rounded-lg border border-[var(--border)]">
+                    <div className="flex items-center gap-2">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span className="text-[13px] font-medium text-[var(--text-primary)]">PIN code enabled</span>
                     </div>
                     <button
                       onClick={() => setShowRemovePinConfirm(true)}
-                      className="w-full px-3 py-3 rounded-lg text-[12px] font-medium text-[var(--danger)] hover:bg-[var(--danger-light)] transition-colors"
+                      className="text-[12px] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                     >
-                      Remove PIN
+                      Remove
                     </button>
                   </div>
                 )}
 
                 {pinStep !== 'idle' && (
-                  <div className="space-y-3">
-                    <div className="px-3 py-4 rounded-lg border border-[var(--border)] bg-[var(--void-elevated)]">
-                      <label className="block text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
-                        {pinStep === 'enter' ? 'Enter new PIN' : 'Confirm PIN'}
-                      </label>
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={8}
-                        value={pinStep === 'enter' ? pinValue : pinConfirm}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '')
-                          if (pinStep === 'enter') setPinValue(val)
-                          else setPinConfirm(val)
+                  <div className="px-3 py-4 rounded-lg border border-[var(--border)] bg-[var(--void-elevated)]">
+                    <label className="block text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+                      {pinStep === 'enter' ? 'Enter new PIN' : 'Confirm PIN'}
+                    </label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={8}
+                      value={pinStep === 'enter' ? pinValue : pinConfirm}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '')
+                        if (pinStep === 'enter') setPinValue(val)
+                        else setPinConfirm(val)
+                        setPinError(null)
+                      }}
+                      placeholder="4-8 digits"
+                      autoFocus
+                      className="w-full bg-transparent text-[var(--text-primary)] text-[20px] font-mono tracking-[0.3em] text-center border-none outline-none placeholder:text-[var(--text-muted)] placeholder:text-[14px] placeholder:tracking-normal"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handlePinSubmit()
+                        if (e.key === 'Escape') {
+                          setPinStep('idle')
+                          setPinValue('')
+                          setPinConfirm('')
+                          setPinError(null)
+                        }
+                      }}
+                    />
+                    <div className="flex justify-center mt-3 gap-1">
+                      {pinStep === 'enter' && Array.from({ length: pinValue.length }).map((_, i) => (
+                        <div key={`pin-enter-${i}`} className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                      ))}
+                      {pinStep === 'confirm' && Array.from({ length: pinConfirm.length }).map((_, i) => (
+                        <div key={`pin-confirm-${i}`} className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                      ))}
+                    </div>
+                    {pinError && (
+                      <p className="text-[12px] text-[var(--danger)] px-1 mt-2">{pinError}</p>
+                    )}
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => {
+                          setPinStep('idle')
+                          setPinValue('')
+                          setPinConfirm('')
                           setPinError(null)
                         }}
-                        placeholder="4-8 digits"
-                        autoFocus
-                        className="w-full bg-transparent text-[var(--text-primary)] text-[20px] font-mono tracking-[0.3em] text-center border-none outline-none placeholder:text-[var(--text-muted)] placeholder:text-[14px] placeholder:tracking-normal"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handlePinSubmit()
-                          if (e.key === 'Escape') {
-                            setPinStep('idle')
-                            setPinValue('')
-                            setPinConfirm('')
-                            setPinError(null)
-                          }
-                        }}
-                      />
-                      <div className="flex justify-center mt-3 gap-1">
-                        {pinStep === 'enter' && Array.from({ length: pinValue.length }).map((_, i) => (
-                          <div key={`pin-enter-${i}`} className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-                        ))}
-                        {pinStep === 'confirm' && Array.from({ length: pinConfirm.length }).map((_, i) => (
-                          <div key={`pin-confirm-${i}`} className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-                        ))}
-                      </div>
-                      {pinError && (
-                        <p className="text-[12px] text-[var(--danger)] px-1 mt-2">{pinError}</p>
-                      )}
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => {
-                            setPinStep('idle')
-                            setPinValue('')
-                            setPinConfirm('')
-                            setPinError(null)
-                          }}
-                          className="flex-1 py-3 px-3 border border-[var(--border)] rounded-lg text-[var(--text-secondary)] text-[13px] font-medium hover:bg-[var(--surface)] transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handlePinSubmit}
-                          disabled={settingUpPin || (pinStep === 'enter' ? pinValue.length < 4 : pinConfirm.length < 4)}
-                          className="flex-1 py-3 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
-                        >
-                          {settingUpPin ? 'Setting up...' : pinStep === 'enter' ? 'Next' : 'Confirm'}
-                        </button>
-                      </div>
+                        className="flex-1 py-3 px-3 border border-[var(--border)] rounded-lg text-[var(--text-secondary)] text-[13px] font-medium hover:bg-[var(--surface)] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handlePinSubmit}
+                        disabled={settingUpPin || (pinStep === 'enter' ? pinValue.length < 4 : pinConfirm.length < 4)}
+                        className="flex-1 py-3 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
+                      >
+                        {settingUpPin ? 'Setting up...' : pinStep === 'enter' ? 'Next' : 'Confirm'}
+                      </button>
                     </div>
                   </div>
                 )}
+              </div>
 
-                <div className="h-px bg-[var(--border)]" />
+              <div className="h-px bg-[var(--border)]" />
 
-                <div>
-                  <button
-                    onClick={() => setShowSecurityInfo(!showSecurityInfo)}
-                    className="w-full flex items-center justify-between py-3 hover:bg-[var(--surface)] rounded-lg transition-colors"
+              <div>
+                <button
+                  onClick={() => setShowSecurityInfo(!showSecurityInfo)}
+                  className="w-full flex items-center justify-between py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <span className="text-[13px] font-medium">How your data is protected</span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--text-muted)"
+                    stroke-width="2"
+                    className={`transition-transform ${showSecurityInfo ? 'rotate-180' : ''}`}
                   >
-                    <div className="flex items-center gap-2">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      </svg>
-                      <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">How your data is protected</h3>
-                    </div>
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--text-muted)"
-                      stroke-width="2"
-                      className={`transition-transform ${showSecurityInfo ? 'rotate-180' : ''}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {showSecurityInfo && (
-                    <div className="mt-3 space-y-0 rounded-lg border border-[var(--border)] overflow-hidden">
-                      {[
-                        { label: 'Authentication', value: 'WebAuthn / Touch ID', desc: 'Hardware-backed biometric auth' },
-                        { label: 'Encryption', value: 'AES-256-GCM', desc: 'Military-grade encryption standard' },
-                        { label: 'Storage', value: 'Local OPFS', desc: 'Data never leaves your device' },
-                        { label: 'Key derivation', value: 'HKDF SHA-256', desc: 'Cryptographic key strengthening' }
-                      ].map((item, i) => (
-                        <div
-                          key={item.label}
-                          className={`px-3 py-2.5 ${i < 3 ? 'border-b border-[var(--border)]' : ''}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[12px] text-[var(--text-secondary)]">{item.label}</span>
-                            <span className="text-[11px] text-[var(--text-primary)] font-mono font-medium">{item.value}</span>
-                          </div>
-                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{item.desc}</p>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {showSecurityInfo && (
+                  <div className="mt-2 space-y-0 rounded-lg border border-[var(--border)] overflow-hidden">
+                    {[
+                      { label: 'Authentication', value: 'WebAuthn / Touch ID' },
+                      { label: 'Encryption', value: 'AES-256-GCM' },
+                      { label: 'Storage', value: 'Local OPFS' },
+                      { label: 'Key derivation', value: 'HKDF SHA-256' },
+                    ].map((item, i) => (
+                      <div
+                        key={item.label}
+                        className={`px-3 py-2 ${i < 3 ? 'border-b border-[var(--border)]' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] text-[var(--text-secondary)]">{item.label}</span>
+                          <span className="text-[11px] text-[var(--text-primary)] font-mono">{item.value}</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1015,147 +991,133 @@ export function SettingsModal({
           )}
 
           {activeSection === 'sync' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                  </svg>
-                  <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Anonymous Sync</h3>
-                </div>
-                <p className="text-[var(--text-tertiary)] text-[12px] mb-3 ml-[22px]">
-                  Sync across devices. No account. No email. No tracking.
-                </p>
-
-                <div className="px-3 py-3 rounded-lg bg-[var(--surface)] mb-4">
-                  <div className="flex items-start gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2" className="mt-0.5 flex-shrink-0">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    <div className="text-[11px] text-[var(--text-tertiary)]">
-                      <p>A unique token is generated locally and stored only on your devices.</p>
+            <div className="space-y-8 animate-fade-in">
+              {syncStatus?.enabled ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+                      <span className="text-[14px] font-medium text-[var(--text-primary)]">Sync is on</span>
                     </div>
+                    <span className="text-[12px] text-[var(--text-muted)]">
+                      {syncStatus.lastSyncAt ? `Last: ${formatLastSync(syncStatus.lastSyncAt)}` : 'Not synced yet'}
+                    </span>
                   </div>
-                </div>
 
-                {syncStatus?.enabled ? (
-                  <div className="space-y-4">
-                    <div className="px-3 py-3 rounded-lg bg-[var(--success-light)] border border-[rgba(22,163,74,0.12)]">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          <span className="text-[13px] font-medium text-[var(--text-primary)]">Sync enabled</span>
+                  <button
+                    onClick={handleTriggerSync}
+                    disabled={syncing}
+                    className="w-full py-3.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-xl text-[14px] font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {syncing ? (
+                      <>
+                        <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
+                        </svg>
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.15" />
+                        </svg>
+                        Sync now
+                      </>
+                    )}
+                  </button>
+
+                  {syncStatus.status === 'error' && syncStatus.error && (
+                    <div className="px-3 py-2.5 rounded-lg bg-[var(--danger-light)] border border-[rgba(220,38,38,0.12)]">
+                      <p className="text-[12px] text-[var(--danger)]">{syncStatus.error}</p>
+                    </div>
+                  )}
+
+                  <div className="h-px bg-[var(--border)]" />
+
+                  <div>
+                    <button
+                      onClick={() => setShowSyncToken(!showSyncToken)}
+                      className="w-full flex items-center justify-between py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <span>Sync another device</span>
+                      <svg
+                        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                        className={`transition-transform ${showSyncToken ? 'rotate-180' : ''}`}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    {showSyncToken && (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-[11px] text-[var(--text-tertiary)]">Copy this token to your other device to sync.</p>
+                        <div className="flex gap-2">
+                          <div className="flex-1 bg-[var(--surface)] text-[var(--text-secondary)] text-[11px] font-mono rounded-lg px-3 py-2.5 border border-[var(--border)] truncate">
+                            {syncStatus.authToken || '••••••••••••••••'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(syncStatus.authToken || '')
+                              showFeedback('Token copied')
+                            }}
+                            className="px-3 py-2.5 border border-[var(--border)] text-[var(--text-secondary)] rounded-lg text-[12px] hover:bg-[var(--surface)] transition-colors"
+                          >
+                            Copy
+                          </button>
                         </div>
-                        <span className="text-[11px] text-[var(--text-muted)]">
-                          Last: {formatLastSync(syncStatus.lastSyncAt)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleTriggerSync}
-                        disabled={syncing}
-                        className="flex-1 py-2.5 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {syncing ? (
-                          <>
-                            <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-                            </svg>
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.15" />
-                            </svg>
-                            Sync now
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={handleDisableSync}
-                        className="py-2.5 px-4 border border-[var(--danger)] text-[var(--danger)] rounded-lg text-[13px] font-medium hover:bg-[var(--danger-light)] transition-colors"
-                      >
-                        Disable
-                      </button>
-                    </div>
-
-                    <div className="px-3 py-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
-                      <p className="text-[11px] text-[var(--text-tertiary)] mb-2">
-                        <strong className="text-[var(--text-primary)]">Your sync token:</strong> Save this to sync other devices.
-                      </p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          readOnly
-                          value={syncStatus.authToken || '••••••••••••••••'}
-                          className="flex-1 bg-[var(--void-elevated)] text-[var(--text-secondary)] text-[11px] font-mono rounded-lg px-3 py-2 border border-[var(--border)]"
-                        />
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(syncStatus.authToken || '')
-                            showFeedback('Token copied')
-                          }}
-                          className="px-3 py-2 border border-[var(--border)] text-[var(--text-secondary)] rounded-lg text-[12px] hover:bg-[var(--surface)] transition-colors"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    </div>
-
-                    {syncStatus.status === 'error' && syncStatus.error && (
-                      <div className="px-3 py-2.5 rounded-lg bg-[var(--danger-light)] border border-[rgba(220,38,38,0.12)]">
-                        <p className="text-[12px] text-[var(--danger)]">{syncStatus.error}</p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="space-y-3">
+
+                  <div className="pt-4">
                     <button
-                      onClick={handleEnableSync}
-                      disabled={testingConnection}
-                      className="w-full py-3 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                      onClick={handleDisableSync}
+                      className="text-[13px] text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                     >
-                      {testingConnection ? (
-                        <>
-                          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-                          </svg>
-                          Creating token...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Enable Anonymous Sync
-                        </>
-                      )}
+                      Disable sync
                     </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-[14px] font-medium text-[var(--text-primary)] mb-1">Anonymous Sync</h3>
+                    <p className="text-[12px] text-[var(--text-tertiary)]">No account. No email. No tracking.</p>
+                  </div>
 
-                    <div className="px-3 py-3 rounded-lg bg-[var(--surface)]">
-                      <div className="flex items-start gap-2">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" className="mt-0.5 flex-shrink-0">
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="12" y1="16" x2="12" y2="12" />
-                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                  <button
+                    onClick={handleEnableSync}
+                    disabled={testingConnection}
+                    className="w-full py-3.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-xl text-[14px] font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {testingConnection ? (
+                      <>
+                        <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
                         </svg>
-                        <div className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                          <p>Your token is generated locally and never leaves your device unhashed.</p>
-                          <p className="mt-1"><strong>Backup your token</strong> to sync other devices.</p>
-                        </div>
-                      </div>
-                    </div>
+                        Creating token...
+                      </>
+                    ) : (
+                      'Enable sync'
+                    )}
+                  </button>
 
-                    <div className="h-px bg-[var(--border)]" />
+                  <div className="h-px bg-[var(--border)]" />
 
-                    <div>
-                      <p className="text-[11px] text-[var(--text-tertiary)] mb-2">Already have a token? Import it:</p>
-                      <div className="flex gap-2">
+                  <div>
+                    <button
+                      onClick={() => setShowImportToken(!showImportToken)}
+                      className="w-full flex items-center justify-between py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <span>Already have a token?</span>
+                      <svg
+                        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                        className={`transition-transform ${showImportToken ? 'rotate-180' : ''}`}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                    {showImportToken && (
+                      <div className="mt-2 flex gap-2">
                         <input
                           type="text"
                           value={cloudflareConfig.apiToken}
@@ -1171,10 +1133,10 @@ export function SettingsModal({
                           Import
                         </button>
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
         </div>

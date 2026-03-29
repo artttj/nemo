@@ -267,7 +267,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-0.5 font-medium">Username</p>
-                    <p className="text-[13px] text-[var(--text-primary)] truncate font-mono">{entry.username}</p>
+                    <p className="text-[13px] text-[var(--text-primary)] truncate">{entry.username}</p>
                   </div>
                   <button
                     onClick={() => handleCopy(entry.username!, 'username')}

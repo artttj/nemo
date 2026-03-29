@@ -79,7 +79,7 @@ body {
 }
 
 .font-mono {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-family: 'IBM Plex Mono', 'Monaco', 'Inconsolata', monospace;
   font-feature-settings: 'tnum' 1;
 }
 

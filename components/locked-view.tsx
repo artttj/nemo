@@ -354,7 +354,7 @@ export function LockedView({
   }
 
   return (
-    <div className="w-[400px] min-h-[420px] flex flex-col bg-[var(--void)]">
+    <div className="w-[400px] min-h-[420px] flex flex-col items-center bg-[var(--void)]">
       {isUnlocking && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[var(--void)] animate-scale-in">
           <div className="text-center">
@@ -368,35 +368,25 @@ export function LockedView({
         </div>
       )}
 
-      <div className="px-5 pt-5 pb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center nemo-brand-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <div className="flex-1 flex flex-col items-center justify-center w-full px-10">
+        <div className="w-full max-w-[280px] flex flex-col items-center">
+          <div className="w-10 h-10 rounded-xl bg-[var(--accent)] flex items-center justify-center nemo-brand-icon mb-8">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <span className="font-semibold text-[var(--text-primary)] text-[15px]">Nemo</span>
-        </div>
-      </div>
 
-      <div className="flex-1 px-5 py-3 flex flex-col">
-        <h1 className="text-xl font-bold text-[var(--text-primary)] mb-0.5">
-          {showFirstTime ? 'Create vault' : 'Welcome back'}
-        </h1>
-        <p className="text-[var(--text-tertiary)] text-[13px] mb-4">
-          {showFirstTime
-            ? 'End-to-end encrypted password storage'
-            : `${entryCount} ${entryCount === 1 ? 'password' : 'passwords'} stored securely`}
-        </p>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)] mb-6 text-center">
+            {showFirstTime ? 'Create your vault' : 'Unlock your vault'}
+          </h1>
 
-        {error && (
-          <div className="mb-3 p-3 bg-[var(--danger-bg)] rounded-lg border border-[var(--danger)]/20">
-            <p className="text-[var(--danger)] text-[13px] font-medium">{error}</p>
-          </div>
-        )}
+          {error && (
+            <div className="mb-4 w-full p-3 bg-[var(--danger-bg)] rounded-lg border border-[var(--danger)]/20">
+              <p className="text-[var(--danger)] text-[13px] font-medium text-center">{error}</p>
+            </div>
+          )}
 
-        <div className="space-y-2">
           <button
             onClick={getMainAction()}
             disabled={loading !== null}
@@ -411,42 +401,33 @@ export function LockedView({
             <button
               onClick={() => setShowPin(true)}
               disabled={loading !== null}
-              className="w-full py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className="mt-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-[13px] font-medium transition-colors flex items-center gap-1.5"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
               Use PIN code
             </button>
           )}
+
+          <p className="text-[var(--text-muted)] text-[11px] mt-5">
+            Encrypted on this device
+          </p>
         </div>
       </div>
 
-      <div className="px-5 py-3 mt-auto">
-        <div className="flex items-center gap-2.5 p-3 bg-[var(--surface)] rounded-lg">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <div className="flex-1">
-            <p className="text-[var(--text-primary)] text-xs font-medium">Encrypted on this device</p>
-            <p className="text-[var(--text-muted)] text-[11px]">Your data never leaves unencrypted</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 py-3 nemo-divider-bottom">
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-muted)] text-xs">Can't access vault?</span>
+      {!showFirstTime && (
+        <div className="pb-5">
           <button
             onClick={() => setShowRecovery(true)}
             disabled={loading !== null}
-            className="text-[var(--accent)] hover:opacity-80 text-xs font-medium transition-opacity"
+            className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-[12px] font-medium transition-colors"
           >
             Use recovery phrase
           </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
