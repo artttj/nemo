@@ -401,7 +401,7 @@ export function LockedView({
             <button
               onClick={() => setShowPin(true)}
               disabled={loading !== null}
-              className="mt-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-[13px] font-medium transition-colors flex items-center gap-1.5"
+              className="mt-2 min-h-[44px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-[13px] font-medium transition-colors flex items-center justify-center gap-1.5 disabled:cursor-not-allowed"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -422,7 +422,7 @@ export function LockedView({
           <button
             onClick={() => setShowRecovery(true)}
             disabled={loading !== null}
-            className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-[12px] font-medium transition-colors"
+            className="min-h-[44px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-[12px] font-medium transition-colors flex items-center disabled:cursor-not-allowed"
           >
             Use recovery phrase
           </button>
