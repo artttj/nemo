@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react'
+import { ArrowLeft, Lock, RefreshCw, Check, Copy, AlertTriangle, Fingerprint } from 'lucide-react'
 import { useBiometricType, getBiometricName } from '~/utils/biometric'
 
 interface VaultSetupProps {
@@ -76,17 +77,12 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
           disabled={creating}
           className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-[var(--surface)] disabled:opacity-50"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft size={16} />
           Back
         </button>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-md bg-[var(--accent)] flex items-center justify-center nemo-brand-icon">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+            <Lock size={13} style={{ color: 'var(--accent-text)' }} />
           </div>
           <span className="font-semibold text-[var(--text-primary)] text-[14px]">Nemo</span>
         </div>
@@ -108,12 +104,7 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
               disabled={creating}
               className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-medium flex items-center gap-1 transition-colors disabled:opacity-50"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 4v6h-6" />
-                <path d="M1 20v-6h6" />
-                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-              </svg>
+              <RefreshCw size={12} />
               Regenerate
             </button>
           </div>
@@ -153,17 +144,12 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
           >
             {copied ? (
               <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
+                <Check size={12} />
                 Copied
               </>
             ) : (
               <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
+                <Copy size={12} />
                 Copy all words
               </>
             )}
@@ -171,11 +157,7 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
         </div>
 
         <div className="flex items-start gap-2.5 px-3 py-2 bg-[var(--danger-bg)] rounded-lg border border-[var(--danger)]/10 mb-4">
-          <svg className="flex-shrink-0 mt-0.5" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+          <AlertTriangle size={12} style={{ color: 'var(--danger)' }} className="flex-shrink-0 mt-0.5" />
           <p className="text-[11px] text-[var(--danger)] leading-relaxed font-medium">
             Write this down now. If you lose your master key and your biometrics, your vault cannot be recovered.
           </p>
@@ -188,14 +170,7 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-[var(--surface)] flex items-center justify-center">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 10V4a2 2 0 0 0-4 0" />
-                  <path d="M8 18a6 6 0 0 0 12-1V9" />
-                  <path d="M12 14v4" />
-                  <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
-                  <path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-9 9" />
-                  <path d="M3 14a9 9 0 0 0 8.9 8" />
-                </svg>
+                <Fingerprint size={18} style={{ color: 'var(--text-secondary)' }} />
               </div>
               <div>
                 <p className="text-[13px] font-medium text-[var(--text-primary)]">{biometricLabel}</p>
@@ -236,9 +211,7 @@ export function VaultSetup({ onBack, onCreate }: VaultSetupProps) {
                 : 'border-[var(--border-strong)] bg-[var(--void-elevated)] group-hover:border-[var(--text-muted)]'
             }`}>
               {confirmed && (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
+                <Check size={10} style={{ color: 'var(--accent-text)' }} />
               )}
             </div>
           </div>

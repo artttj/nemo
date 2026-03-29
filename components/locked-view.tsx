@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react'
-import { MoveLeft, User, Lock, Fingerprint } from 'lucide-react'
+import { MoveLeft, User, Lock, Fingerprint, ArrowLeft } from 'lucide-react'
 import { useBiometricType } from '~/utils/biometric'
 
 interface LockedViewProps {
@@ -295,9 +295,7 @@ export function LockedView({
                   } disabled:opacity-50`}
                 >
                   {key === 'del' ? (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12H9M9 12l-4-4m4 4l-4 4m4-4H3" />
-                    </svg>
+                    <ArrowLeft size={24} />
                   ) : (
                     key
                   )}
@@ -399,10 +397,7 @@ export function LockedView({
               disabled={loading !== null}
               className="mt-2 min-h-[44px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-[13px] font-medium transition-colors flex items-center justify-center gap-1.5 disabled:cursor-not-allowed"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+              <Lock size={13} />
               Use PIN code
             </button>
           )}
