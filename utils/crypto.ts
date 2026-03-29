@@ -184,3 +184,112 @@ export function bufferToHex(buffer: Uint8Array): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
 }
+
+// Password generation constants
+const DEFAULT_PASSWORD_LENGTH = 20
+const MIN_PASSWORD_LENGTH = 8
+const MAX_PASSWORD_LENGTH = 64
+const ENTROPY_POOL_SIZE = 32
+
+interface PasswordOptions {
+  length?: number
+  uppercase?: boolean
+  lowercase?: boolean
+  numbers?: boolean
+  symbols?: boolean
+}
+
+export function generatePassword(options: PasswordOptions = {}): string {
+  const {
+    length = DEFAULT_PASSWORD_LENGTH,
+    uppercase = true,
+    lowercase = true,
+    numbers = true,
+    symbols = true
+  } = options
+
+  // Build character set
+  let chars = ''
+  if (lowercase) chars += 'abcdefghijklmnopqrstuvwxyz'
+  if (uppercase) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  if (numbers) chars += '0123456789'
+  if (symbols) chars += '!@#$%^&*'
+
+  if (chars.length === 0) {
+    throw new Error('At least one character type must be enabled')
+  }
+
+  const clampedLength = Math.max(MIN_PASSWORD_LENGTH, Math.min(length, MAX_PASSWORD_LENGTH))
+  const limit = 256 - (256 % chars.length)
+  let result = ''
+
+  while (result.length < clampedLength) {
+    const bytes = crypto.getRandomValues(new Uint8Array(ENTROPY_POOL_SIZE))
+    for (let i = 0; i < bytes.length && result.length < clampedLength; i++) {
+      if (bytes[i] < limit) {
+        result += chars.charAt(bytes[i] % chars.length)
+      }
+    }
+  }
+
+  return result
+}
+
+export function generateSecurePassword(options: PasswordOptions = {}): string {
+  const {
+    length = DEFAULT_PASSWORD_LENGTH,
+    uppercase = true,
+    lowercase = true,
+    numbers = true,
+    symbols = true
+  } = options
+
+  const clampedLength = Math.max(MIN_PASSWORD_LENGTH, Math.min(length, MAX_PASSWORD_LENGTH))
+
+  // Build pools
+  const pools: string[] = []
+  if (lowercase) pools.push('abcdefghijklmnopqrstuvwxyz')
+  if (uppercase) pools.push('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+  if (numbers) pools.push('0123456789')
+  if (symbols) pools.push('!@#$%^&*')
+
+  if (pools.length === 0) {
+    throw new Error('At least one character type must be enabled')
+  }
+
+  // Ensure at least one from each pool
+  let password = ''
+  for (const pool of pools) {
+    const bytes = crypto.getRandomValues(new Uint8Array(1))
+    password += pool.charAt(bytes[0] % pool.length)
+  }
+
+  // Fill remaining with random from all pools
+  const allChars = pools.join('')
+  const remaining = clampedLength - password.length
+  const limit = 256 - (256 % allChars.length)
+
+  while (password.length < clampedLength) {
+    const bytes = crypto.getRandomValues(new Uint8Array(ENTROPY_POOL_SIZE))
+    for (let i = 0; i < bytes.length && password.length < clampedLength; i++) {
+      if (bytes[i] < limit) {
+        password += allChars.charAt(bytes[i] % allChars.length)
+      }
+    }
+  }
+
+  // Shuffle the password
+  return shuffleString(password)
+}
+
+function shuffleString(str: string): string {
+  const arr = str.split('')
+  const bytes = crypto.getRandomValues(new Uint8Array(arr.length))
+
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = bytes[i] % (i + 1)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+
+  return arr.join('')
+}

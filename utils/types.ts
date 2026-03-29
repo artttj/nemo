@@ -1,3 +1,17 @@
+export interface TOTPConfig {
+  secret: string
+  digits?: number
+  period?: number
+  issuer?: string
+  accountName?: string
+}
+
+export interface EntryHistory {
+  version: number
+  data: Omit<VaultEntry, 'history'>
+  changedAt: number
+}
+
 export interface VaultEntry {
   id: string
   title: string
@@ -5,17 +19,29 @@ export interface VaultEntry {
   password?: string
   url?: string
   notes?: string
+  totp?: TOTPConfig
   createdAt: number
   updatedAt: number
   tags?: string[]
   favorite?: boolean
   favicon?: string
+  history?: EntryHistory[]
+}
+
+export interface SitePreferences {
+  hostname: string
+  autoFillMode: 'always' | 'never' | 'ask'
+  defaultUsername?: string
+  preferredEntryId?: string
+  createdAt: number
+  updatedAt: number
 }
 
 export interface VaultSettings {
   autoLockMinutes: number
   theme: "light" | "dark" | "system"
   lastUnlockedAt?: number
+  sitePreferences?: Record<string, SitePreferences>
 }
 
 export interface VaultMetadata {
@@ -92,6 +118,12 @@ export type MessageType =
   | "GET_PIN_LENGTH"
   | "SETUP_VAULT_PIN"
   | "REMOVE_VAULT_PIN"
+  | "GENERATE_RECOVERY_PHRASE"
+  | "CREATE_VAULT_WITH_OPTIONS"
+  | "RESTORE_ENTRY_VERSION"
+  | "GET_SITE_PREFERENCES"
+  | "SET_SITE_PREFERENCES"
+  | "DELETE_SITE_PREFERENCES"
 
 export interface Message<T = unknown> {
   type: MessageType
@@ -111,6 +143,7 @@ export interface AddEntryPayload {
   url?: string
   notes?: string
   tags?: string[]
+  totp?: TOTPConfig
 }
 
 export interface UpdateEntryPayload {
@@ -134,4 +167,14 @@ export interface ImportVaultPayload {
 
 export interface CreateVaultPayload {
   vaultName?: string
+}
+
+export interface RestoreVersionPayload {
+  entryId: string
+  version: number
+}
+
+export interface SitePreferencesPayload {
+  hostname: string
+  preferences: Omit<SitePreferences, 'hostname' | 'createdAt' | 'updatedAt'>
 }

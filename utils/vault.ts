@@ -1,11 +1,13 @@
-import type { Vault, VaultMetadata, VaultEntry, VaultInfo, VaultRegistry } from "./types"
-import { encrypt, decrypt, generateSalt, generateUUID, generateVaultKey, wrapVaultKey, unwrapVaultKey } from "./crypto"
+import type { Vault, VaultMetadata, VaultEntry, VaultInfo, VaultRegistry, EntryHistory } from "./types"
+import type { RecoveryData } from "../vault/types"
+import { encrypt, decrypt, generateSalt, generateUUID, generateVaultKey, wrapVaultKey, unwrapVaultKey, bufferToBase64 } from "./crypto"
 
 const VAULT_PREFIX = "nemo-vault-"
 const REGISTRY_FILE = "vault-registry.json"
 const VAULT_FILE = "vault.enc"
 const METADATA_FILE = "metadata.json"
 const WRAPPED_KEY_FILE = "key.enc"
+const RECOVERY_FILE = "recovery.enc"
 
 let opfsRoot: FileSystemDirectoryHandle | null = null
 let activeVaultId: string | null = null
@@ -25,8 +27,10 @@ async function getVaultDirectory(vaultId?: string, create = true): Promise<FileS
   try {
     const root = await getOPFSRoot()
     const targetId = vaultId || activeVaultId
-    if (!targetId) return null
-    
+    if (!targetId) {
+      return null
+    }
+
     const dirName = getVaultDirName(targetId)
     if (create) {
       return await root.getDirectoryHandle(dirName, { create: true })
@@ -44,11 +48,11 @@ async function loadRegistry(): Promise<VaultRegistry> {
     const blob = await file.getFile()
     const text = await blob.text()
     const registry = JSON.parse(text) as VaultRegistry
-    
+
     if (registry.activeVaultId) {
       activeVaultId = registry.activeVaultId
     }
-    
+
     return registry
   } catch {
     return { vaults: [], activeVaultId: null }
@@ -115,7 +119,7 @@ export async function createNewVault(name: string, vaultKey?: CryptoKey): Promis
 
   await saveRegistry(registry)
 
-  const salt = generateSalt()
+  const salt = await generateSalt()
   const metadata: VaultMetadata = {
     version: "1.0.0",
     vaultId,
@@ -201,18 +205,51 @@ export async function deleteVaultFromRegistry(vaultId: string): Promise<boolean>
   return true
 }
 
+async function scanForVaults(): Promise<string[]> {
+  try {
+    const root = await getOPFSRoot()
+    const vaults: string[] = []
+    for await (const entry of root.values()) {
+      if (entry.kind === 'directory' && entry.name.startsWith(VAULT_PREFIX)) {
+        const vaultId = entry.name.slice(VAULT_PREFIX.length)
+        try {
+          const dir = await root.getDirectoryHandle(entry.name)
+          await dir.getFileHandle(VAULT_FILE)
+          vaults.push(vaultId)
+        } catch {
+        }
+      }
+    }
+    return vaults
+  } catch {
+    return []
+  }
+}
+
 export async function vaultExists(): Promise<boolean> {
   const activeId = await getActiveVaultId()
-  if (!activeId) return false
-  
-  const dir = await getVaultDirectory(activeId, false)
-  if (!dir) return false
-  try {
-    await dir.getFileHandle(VAULT_FILE)
-    return true
-  } catch {
-    return false
+  if (activeId) {
+    const dir = await getVaultDirectory(activeId, false)
+    if (dir) {
+      try {
+        await dir.getFileHandle(VAULT_FILE)
+        return true
+      } catch {
+      }
+    }
   }
+
+  const foundVaults = await scanForVaults()
+  if (foundVaults.length > 0) {
+    const registry = await loadRegistry()
+    if (!registry.activeVaultId || !foundVaults.includes(registry.activeVaultId)) {
+      registry.activeVaultId = foundVaults[0]
+      await saveRegistry(registry)
+    }
+    return true
+  }
+
+  return false
 }
 
 export async function initializeVault(wrappingKey: CryptoKey, salt: string, vaultName?: string): Promise<{ metadata: VaultMetadata; vaultKey: CryptoKey }> {
@@ -421,12 +458,29 @@ export function addEntry(vault: Vault, entry: Omit<VaultEntry, "id" | "createdAt
   }
 }
 
+function createHistorySnapshot(entry: VaultEntry): EntryHistory[] {
+  const { history: currentHistory, ...entryWithoutHistory } = entry
+  const previousVersions = currentHistory || []
+  const newVersion: EntryHistory = {
+    version: previousVersions.length + 1,
+    data: { ...entryWithoutHistory },
+    changedAt: Date.now()
+  }
+  return [newVersion, ...previousVersions].slice(0, 5)
+}
+
 export function updateEntry(vault: Vault, id: string, updates: Partial<VaultEntry>): Vault {
   return {
     ...vault,
-    entries: vault.entries.map((entry: VaultEntry) =>
-      entry.id === id ? { ...entry, ...updates, updatedAt: Date.now() } : entry
-    )
+    entries: vault.entries.map((entry: VaultEntry) => {
+      if (entry.id !== id) return entry
+      return {
+        ...entry,
+        ...updates,
+        updatedAt: Date.now(),
+        history: createHistorySnapshot(entry)
+      }
+    })
   }
 }
 
@@ -434,6 +488,25 @@ export function deleteEntry(vault: Vault, id: string): Vault {
   return {
     ...vault,
     entries: vault.entries.filter((entry: VaultEntry) => entry.id !== id)
+  }
+}
+
+export function restoreEntryVersion(vault: Vault, entryId: string, version: number): Vault {
+  return {
+    ...vault,
+    entries: vault.entries.map((entry: VaultEntry) => {
+      if (entry.id !== entryId) return entry
+
+      const versionToRestore = entry.history?.find(h => h.version === version)
+      if (!versionToRestore) return entry
+
+      return {
+        ...versionToRestore.data,
+        id: entry.id,
+        updatedAt: Date.now(),
+        history: createHistorySnapshot(entry)
+      }
+    })
   }
 }
 
@@ -477,6 +550,28 @@ export function getFaviconUrl(url: string | undefined, size = 32): string | null
   }
 }
 
-function bufferToBase64(buffer: Uint8Array): string {
-  return btoa(String.fromCharCode(...buffer))
+export async function storeRecoveryData(data: RecoveryData): Promise<void> {
+  const activeId = await getActiveVaultId()
+  if (!activeId) throw new Error("No active vault")
+  const dir = await getVaultDirectory(activeId, true)
+  if (!dir) throw new Error("Failed to access vault directory")
+  const file = await dir.getFileHandle(RECOVERY_FILE, { create: true })
+  const writer = await file.createWritable()
+  await writer.write(JSON.stringify(data, null, 2))
+  await writer.close()
+}
+
+export async function loadRecoveryData(): Promise<RecoveryData | null> {
+  const activeId = await getActiveVaultId()
+  if (!activeId) return null
+  const dir = await getVaultDirectory(activeId, false)
+  if (!dir) return null
+  try {
+    const file = await dir.getFileHandle(RECOVERY_FILE)
+    const blob = await file.getFile()
+    const text = await blob.text()
+    return JSON.parse(text) as RecoveryData
+  } catch {
+    return null
+  }
 }

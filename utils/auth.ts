@@ -43,14 +43,12 @@ export async function isBiometricSupported(): Promise<boolean> {
 }
 
 export async function registerCredential(): Promise<WebAuthnCredential> {
-  console.log('auth: calling register')
   const response = await webAuthnRegister()
-  console.log('auth: got response', response)
-  
+
   if (response.error) {
     throw new Error(response.error)
   }
-  
+
   return response.data as WebAuthnCredential
 }
 
@@ -66,17 +64,15 @@ export async function authenticateWithCredential(
   credentialId: string,
   salt: string
 ): Promise<WrappedKeyData> {
-  console.log('auth: calling authenticate')
   const response = await webAuthnAuthenticate({ credentialId, salt })
-  console.log('auth: got response', response)
-  
+
   if (response.error) {
     throw new Error(response.error)
   }
-  
+
   const { prfOutput } = response.data as { prfOutput: string }
   const wrappingKey = await deriveKeyFromPrfOutput(prfOutput, salt)
-  
+
   return { wrappingKey, credentialId }
 }
 

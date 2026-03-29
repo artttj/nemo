@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useBiometricType } from '~/utils/biometric'
 
 interface LockedViewProps {
   onUnlock: () => Promise<void>
@@ -34,26 +35,17 @@ export function LockedView({
   const [recoveryPhrase, setRecoveryPhrase] = useState('')
   const [pin, setPin] = useState('')
   const [masterKeyInput, setMasterKeyInput] = useState('')
-  const [showMasterKey, setShowMasterKey] = useState(false)
+  const [showMasterKey, setShowMasterKey] = useState(vaultExists && !hasCredential)
   const [isUnlocking, setIsUnlocking] = useState(false)
-  const [biometricAvailable, setBiometricAvailable] = useState<'touchid' | 'hello' | null>(null)
+  const biometricAvailable = useBiometricType()
 
-  const showFirstTime = !vaultExists || !hasCredential
+  const showFirstTime = vaultExists === false
 
   useEffect(() => {
     if (!isUnlocking) return
     const timer = setTimeout(() => setIsUnlocking(false), 1200)
     return () => clearTimeout(timer)
   }, [isUnlocking])
-
-  useEffect(() => {
-    const platform = navigator.platform.toLowerCase()
-    if (platform.includes('mac') || platform.includes('iphone') || platform.includes('ipad')) {
-      setBiometricAvailable('touchid')
-    } else if (platform.includes('win')) {
-      setBiometricAvailable('hello')
-    }
-  }, []) // Platform detection runs once on mount
 
   const handleUnlock = async () => {
     setLoading('unlock')
@@ -357,11 +349,28 @@ export function LockedView({
   }
 
   const getBiometricLabel = () => {
-    if (!showFirstTime) {
-      if (biometricAvailable === 'touchid') return 'Unlock with Touch ID'
-      if (biometricAvailable === 'hello') return 'Unlock with Windows Hello'
-    }
-    return showFirstTime ? 'Create vault' : 'Unlock vault'
+    if (showFirstTime) return 'Create vault'
+    if (!hasCredential) return 'Unlock with master key'
+    if (biometricAvailable === 'touchid') return 'Unlock with Touch ID'
+    if (biometricAvailable === 'hello') return 'Unlock with Windows Hello'
+    return 'Unlock vault'
+  }
+
+  const getMainAction = () => {
+    if (showFirstTime) return handleCreate
+    if (!hasCredential) return () => setShowMasterKey(true)
+    return handleUnlock
+  }
+
+  if (vaultExists === undefined) {
+    return (
+      <div className="w-[400px] min-h-[420px] flex items-center justify-center bg-[var(--void)]">
+        <div className="text-center">
+          <div className="w-8 h-8 mx-auto mb-3 rounded-lg bg-[var(--accent)] animate-pulse"></div>
+          <p className="text-[var(--text-secondary)] text-sm">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -408,23 +417,25 @@ export function LockedView({
         )}
 
         <div className="space-y-2">
-          <button
-            onClick={showFirstTime ? handleCreate : handleUnlock}
-            disabled={loading !== null}
-            className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading === 'create' || loading === 'unlock'
-              ? 'Verifying...'
-              : getBiometricLabel()}
-          </button>
+          {(!showMasterKey || hasCredential) && (
+            <button
+              onClick={getMainAction()}
+              disabled={loading !== null}
+              className="w-full nemo-button-primary py-3 text-[14px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading === 'create' || loading === 'unlock'
+                ? 'Verifying...'
+                : getBiometricLabel()}
+            </button>
+          )}
 
-          {!showFirstTime && !showMasterKey && (
+          {!showFirstTime && hasCredential && !showMasterKey && (
             <button
               onClick={() => setShowMasterKey(true)}
               disabled={loading !== null}
               className="w-full nemo-button-secondary py-2.5 text-[14px] font-medium"
             >
-              Use master password
+              Use master key
             </button>
           )}
 
@@ -442,22 +453,24 @@ export function LockedView({
                     handleMasterKeyUnlock()
                   }
                 }}
-                placeholder="Enter your 12-word recovery phrase..."
+                placeholder="Enter your 12-word master key..."
                 rows={3}
                 autoFocus
                 className="w-full nemo-input px-3 py-2.5 text-sm resize-none"
               />
               <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowMasterKey(false); setMasterKeyInput(''); setError(null); }}
-                  className="flex-1 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm font-medium transition-colors"
-                >
-                  Cancel
-                </button>
+                {hasCredential && (
+                  <button
+                    onClick={() => { setShowMasterKey(false); setMasterKeyInput(''); setError(null); }}
+                    className="flex-1 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   onClick={handleMasterKeyUnlock}
                   disabled={loading !== null || !masterKeyInput.trim()}
-                  className="flex-1 py-2 bg-[var(--surface)] hover:bg-[var(--void-elevated)] text-[var(--text-primary)] rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${hasCredential ? 'flex-1' : 'w-full'} nemo-button-primary py-2.5 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {loading === 'recovery' ? 'Unlocking...' : 'Unlock'}
                 </button>

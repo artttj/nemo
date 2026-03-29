@@ -3,10 +3,12 @@ import type { VaultEntry, VaultRegistry } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
 import { getDomain } from '~/utils/url'
 import { LockedView } from '~/components/locked-view'
+import { VaultSetup } from '~/components/vault-setup'
 import { AddEditModal } from '~/components/add-edit-modal'
 import { SettingsModal } from '~/components/settings-modal'
 import { EntryDetailModal } from '~/components/entry-detail-modal'
 import { VaultSelector } from '~/components/vault-selector'
+import { TOTPDisplay } from '~/components/totp-display'
 import '~/style.css'
 
 type FilterType = 'all' | 'recent'
@@ -43,10 +45,41 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [vaultRegistry, setVaultRegistry] = useState<VaultRegistry | null>(null)
+  const [showVaultSetup, setShowVaultSetup] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1)
 
   useEffect(() => {
     loadStateWithRetry()
   }, [])
+
+  // Poll for state changes (e.g., after WebAuthn redirect)
+  useEffect(() => {
+    if (state.isUnlocked) return
+
+    let pollCount = 0
+    const maxPolls = 20 // Poll for up to 10 seconds (20 * 500ms)
+
+    const poll = async () => {
+      try {
+        const response = await chrome.runtime.sendMessage({ type: 'GET_VAULT_STATE' })
+        if (response.success && response.data.isUnlocked && !state.isUnlocked) {
+          setState(response.data)
+          setLoading(false)
+        }
+      } catch {
+      }
+      pollCount++
+      if (pollCount < maxPolls && !state.isUnlocked) {
+        pollTimeout = setTimeout(poll, 500)
+      }
+    }
+
+    let pollTimeout: ReturnType<typeof setTimeout> | null = setTimeout(poll, 500)
+
+    return () => {
+      if (pollTimeout) clearTimeout(pollTimeout)
+    }
+  }, [state.isUnlocked])
 
   const loadStateWithRetry = async (retries = 3) => {
     for (let i = 0; i < retries; i++) {
@@ -110,25 +143,25 @@ export default function App() {
   }
 
   const handleCreate = async () => {
-    try {
-      setIsUnlocking(true)
-      const response = await chrome.runtime.sendMessage({ type: 'CREATE_VAULT' })
-      if (response.success) {
-        setTimeout(() => {
-          setState((prev: any) => ({
-            ...prev,
-            isUnlocked: true,
-            metadata: response.data,
-            vault: { entries: [], settings: { autoLockMinutes: 15, theme: 'dark' } }
-          }))
-          setIsUnlocking(false)
-        }, 800)
-      } else {
-        throw new Error(response.error || 'Failed to create vault')
-      }
-    } catch (error: any) {
-      setError(String(error))
-      setIsUnlocking(false)
+    setShowVaultSetup(true)
+  }
+
+  const handleVaultSetupCreate = async (recoveryPhrase: string, enableTouchId: boolean) => {
+    const response = await chrome.runtime.sendMessage({
+      type: 'CREATE_VAULT_WITH_OPTIONS',
+      payload: { recoveryPhrase, enableTouchId }
+    })
+    if (response.success) {
+      setShowVaultSetup(false)
+      setVaultExists({ exists: true, hasCredential: enableTouchId })
+      setState((prev: any) => ({
+        ...prev,
+        isUnlocked: true,
+        metadata: response.data.metadata,
+        vault: { entries: [], settings: { autoLockMinutes: 15, theme: 'dark' } }
+      }))
+    } else {
+      throw new Error(response.error || 'Failed to create vault')
     }
   }
 
@@ -166,12 +199,7 @@ export default function App() {
 
   const handleLock = async () => {
     await chrome.runtime.sendMessage({ type: 'LOCK_VAULT' })
-    setState({
-      isUnlocked: false,
-      vault: null,
-      metadata: null,
-      lastActivity: Date.now()
-    })
+    await loadStateWithRetry()
   }
 
   const handleSwitchVault = async (vaultId: string) => {
@@ -193,14 +221,21 @@ export default function App() {
   }
 
   const handleAddEntry = async (entry: Omit<VaultEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const response = await chrome.runtime.sendMessage({ type: 'ADD_ENTRY', payload: entry })
-    if (response.success) {
-      setState((prev: any) => ({
-        ...prev,
-        vault: prev.vault ? { ...prev.vault, entries: [...prev.vault.entries, response.data] } : null
-      }))
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'ADD_ENTRY', payload: entry })
+      if (response.success) {
+        setState((prev: any) => ({
+          ...prev,
+          vault: prev.vault ? { ...prev.vault, entries: [...prev.vault.entries, response.data] } : null
+        }))
+        setShowAddModal(false)
+        setError(null)
+      } else {
+        setError(response.error || 'Failed to add entry')
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to add entry')
     }
-    setShowAddModal(false)
   }
 
   const handleEditEntry = async (updates: Partial<VaultEntry>) => {
@@ -271,6 +306,33 @@ export default function App() {
     }
   }
 
+  const handleRestoreFromDetail = async (entryId: string, version: number) => {
+    const response = await chrome.runtime.sendMessage({
+      type: 'RESTORE_ENTRY_VERSION',
+      payload: { entryId, version }
+    })
+    if (response.success) {
+      setViewingEntry(response.data)
+      refreshVault()
+    }
+  }
+
+  const handleSaveSitePreferences = async (hostname: string, preferences: { autoFillMode: 'always' | 'never' | 'ask'; preferredEntryId?: string }) => {
+    const response = await chrome.runtime.sendMessage({
+      type: 'SET_SITE_PREFERENCES',
+      payload: { hostname, preferences }
+    })
+    if (response.success) {
+      refreshVault()
+    }
+  }
+
+  const getSitePreferencesForEntry = (entry: VaultEntry | null) => {
+    if (!entry?.url) return null
+    const hostname = getDomain(entry.url) || entry.url
+    return state.vault?.settings?.sitePreferences?.[hostname] || null
+  }
+
   const allEntries = state.vault?.entries ?? []
 
   const recentCount = useMemo(() => {
@@ -293,6 +355,53 @@ export default function App() {
       })
       .sort((a: any, b: any) => b.updatedAt - a.updatedAt)
   }, [allEntries, searchQuery, activeFilter])
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!state.isUnlocked) return
+    if (showAddModal || showSettings || viewingEntry) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const entryCount = filteredEntries.length
+      if (entryCount === 0) return
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setSelectedIndex((prev) => prev < entryCount - 1 ? prev + 1 : 0)
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setSelectedIndex((prev) => prev > 0 ? prev - 1 : entryCount - 1)
+          break
+        case 'Enter':
+          if (selectedIndex >= 0 && selectedIndex < entryCount) {
+            e.preventDefault()
+            const entry = filteredEntries[selectedIndex]
+            if (entry?.password) {
+              navigator.clipboard.writeText(entry.password)
+              setSelectedIndex(-1)
+            }
+          }
+          break
+        case 'Escape':
+          e.preventDefault()
+          handleLock()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [state.isUnlocked, filteredEntries, selectedIndex, showAddModal, showSettings, viewingEntry])
+
+  // Scroll selected element into view after keyboard navigation
+  useEffect(() => {
+    if (selectedIndex >= 0) {
+      const element = document.querySelector(`[data-selected="true"]`) as HTMLElement
+      element?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [selectedIndex])
 
   const handlePinSetup = useCallback(async (pin: string) => {
     const response = await chrome.runtime.sendMessage({ type: 'SETUP_VAULT_PIN', payload: pin })
@@ -349,11 +458,20 @@ export default function App() {
     )
   }
 
+  if (showVaultSetup) {
+    return (
+      <VaultSetup
+        onBack={() => setShowVaultSetup(false)}
+        onCreate={handleVaultSetupCreate}
+      />
+    )
+  }
+
   if (!state.isUnlocked) {
     return (
-      <LockedView 
-        onUnlock={handleUnlock} 
-        onCreate={handleCreate} 
+      <LockedView
+        onUnlock={handleUnlock}
+        onCreate={handleCreate}
         onRecoveryCreate={handleRecoveryCreate}
         onRecoveryUnlock={handleRecoveryUnlock}
         onPinUnlock={handlePinUnlock}
@@ -472,13 +590,17 @@ export default function App() {
           </div>
         ) : (
           <div className="space-y-0.5">
-            {filteredEntries.map((entry: any) => {
+            {filteredEntries.map((entry: any, index: number) => {
               const favicon = getFaviconUrl(entry.url)
+              const isSelected = index === selectedIndex
               return (
               <div
                 key={entry.id}
-                className="nemo-entry-row flex items-center gap-3 px-2.5 py-2.5 -mx-1 rounded-lg cursor-pointer hover:bg-[var(--surface)] group"
+                className={`nemo-entry-row flex items-center gap-3 px-2.5 py-2.5 -mx-1 rounded-lg cursor-pointer hover:bg-[var(--surface)] group ${
+                  isSelected ? 'bg-[var(--surface)] ring-1 ring-[var(--accent)]' : ''
+                }`}
                 onClick={() => setViewingEntry(entry)}
+                data-selected={isSelected}
               >
                 <div className="w-9 h-9 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {favicon ? (
@@ -498,9 +620,14 @@ export default function App() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{entry.title}</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] truncate mt-0.5">
-                    {entry.username || getDomain(entry.url) || 'No username'}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                      {entry.username || getDomain(entry.url) || 'No username'}
+                    </p>
+                    {entry.totp && (
+                      <TOTPDisplay config={entry.totp} compact />
+                    )}
+                  </div>
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   <polyline points="9 18 15 12 9 6" />
@@ -539,6 +666,9 @@ export default function App() {
         onClose={() => setViewingEntry(null)}
         onEdit={handleEditFromDetail}
         onDelete={handleDeleteFromDetail}
+        onRestore={handleRestoreFromDetail}
+        sitePreferences={getSitePreferencesForEntry(viewingEntry)}
+        onSaveSitePreferences={handleSaveSitePreferences}
       />
 
       <SettingsModal

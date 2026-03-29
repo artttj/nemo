@@ -289,17 +289,20 @@ export async function deriveKeyFromPhrase(phrase: string): Promise<CryptoKey> {
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['wrapKey', 'unwrapKey']
   )
 }
 
-export async function createRecoveryBackup(vaultKey: CryptoKey, vaultId: string): Promise<{ phrase: string; encryptedData: RecoveryData }> {
-  const phrase = generateRecoveryPhrase()
+export async function createRecoveryBackup(
+  vaultKey: CryptoKey,
+  vaultId: string,
+  existingPhrase?: string
+): Promise<{ phrase: string; encryptedData: RecoveryData }> {
+  const phrase = existingPhrase || generateRecoveryPhrase()
   const recoveryKey = await deriveKeyFromPhrase(phrase)
-  
   const { wrappedKey, iv } = await wrapVaultKey(vaultKey, recoveryKey)
   const salt = bufferToBase64(generateRandomBytes(16))
-  
+
   const encryptedData: RecoveryData = {
     version: 1,
     vaultId,
@@ -308,7 +311,7 @@ export async function createRecoveryBackup(vaultKey: CryptoKey, vaultId: string)
     iv,
     createdAt: Date.now()
   }
-  
+
   return { phrase, encryptedData }
 }
 

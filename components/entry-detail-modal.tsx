@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import type { VaultEntry } from '~/utils/types'
+import type { VaultEntry, EntryHistory } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
 import { getDomain } from '~/utils/url'
+import { TOTPDisplay } from './totp-display'
 
 interface EntryDetailModalProps {
   entry: VaultEntry | null
@@ -9,13 +10,20 @@ interface EntryDetailModalProps {
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  onRestore?: (entryId: string, version: number) => Promise<void>
+  sitePreferences?: { autoFillMode: 'always' | 'never' | 'ask' } | null
+  onSaveSitePreferences?: (hostname: string, preferences: { autoFillMode: 'always' | 'never' | 'ask'; preferredEntryId?: string }) => Promise<void>
 }
 
-export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: EntryDetailModalProps) {
+export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onRestore, sitePreferences, onSaveSitePreferences }: EntryDetailModalProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState<EntryHistory | null>(null)
+  const [restoring, setRestoring] = useState(false)
+  const [savingPrefs, setSavingPrefs] = useState(false)
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -23,6 +31,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
     setCopied(null)
     setShowMenu(false)
     setShowDeleteConfirm(false)
+    setActiveTab('details')
+    setShowRestoreConfirm(null)
+    setRestoring(false)
   }, [entry?.id])
 
   useEffect(() => {
@@ -48,6 +59,24 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
     setShowDeleteConfirm(false)
     setShowMenu(false)
     onDelete()
+  }
+
+  const handleRestore = async () => {
+    if (!showRestoreConfirm || !entry || !onRestore) return
+    setRestoring(true)
+    await onRestore(entry.id, showRestoreConfirm.version)
+    setRestoring(false)
+    setShowRestoreConfirm(null)
+  }
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
   }
 
   return (
@@ -85,13 +114,47 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
           </div>
         </div>
       )}
+
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowRestoreConfirm(null)} />
+          <div className="relative bg-[var(--void)] rounded-xl p-5 max-w-sm w-full border border-[var(--border)] shadow-xl">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-[var(--accent-bg)] flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                <polyline points="1 4 1 10 7 10" />
+                <polyline points="23 20 23 14 17 14" />
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+              </svg>
+            </div>
+            <h3 className="text-base font-semibold text-[var(--text-primary)] text-center mb-1">Restore this version?</h3>
+            <p className="text-[var(--text-secondary)] text-sm text-center mb-4">
+              This will replace the current entry with the version from {formatDate(showRestoreConfirm.changedAt)}. The current state will be saved to history.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRestoreConfirm(null)}
+                className="flex-1 py-2 px-3 border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--surface)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRestore}
+                disabled={restoring}
+                className="flex-1 py-2 px-3 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
+              >
+                {restoring ? 'Restoring...' : 'Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className={`absolute right-0 top-0 h-full w-[380px] bg-[var(--void)] flex flex-col nemo-slide-panel transition-transform duration-200 ease-out ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-          <button 
+          <button
             onClick={onClose}
             className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium"
           >
@@ -100,9 +163,32 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
             </svg>
             Back
           </button>
-          
+
+          <div className="flex items-center gap-1 bg-[var(--surface)] rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'details'
+                  ? 'bg-[var(--void-elevated)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                activeTab === 'history'
+                  ? 'bg-[var(--void-elevated)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              History {entry?.history && entry.history.length > 0 && `(${entry.history.length})`}
+            </button>
+          </div>
+
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors"
             >
@@ -143,7 +229,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-4 py-4 border-b border-[var(--border)]">
+          {activeTab === 'details' ? (
+            <>
+            <div className="px-4 py-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {favicon ? (
@@ -277,15 +365,138 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete }: E
               </div>
             )}
 
+            {entry.totp && (
+              <div className="px-4 py-3">
+                <TOTPDisplay
+                  config={entry.totp}
+                  onCopy={(code) => handleCopy(code, 'totp')}
+                />
+              </div>
+            )}
+
             {entry.notes && (
               <div className="px-4 py-3">
                 <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-1 font-medium">Notes</p>
                 <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">{entry.notes}</p>
               </div>
             )}
+
+            {entry.url && onSaveSitePreferences && (
+              <div className="px-4 py-3 border-t border-[var(--border)]">
+                <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-2 font-medium">Site Preferences</p>
+                <div className="space-y-2">
+                  <select
+                    value={sitePreferences?.autoFillMode ?? 'ask'}
+                    onChange={async (e) => {
+                      const mode = e.target.value as 'always' | 'never' | 'ask'
+                      setSavingPrefs(true)
+                      await onSaveSitePreferences(getDomain(entry.url!) || entry.url!, {
+                        autoFillMode: mode,
+                        preferredEntryId: mode === 'always' ? entry.id : undefined
+                      })
+                      setSavingPrefs(false)
+                    }}
+                    disabled={savingPrefs}
+                    className="w-full nemo-input px-3 py-2 text-sm"
+                  >
+                    <option value="ask">Ask before filling</option>
+                    <option value="always">Always fill with this entry</option>
+                    <option value="never">Never fill on this site</option>
+                  </select>
+                  {savingPrefs && (
+                    <p className="text-xs text-[var(--text-muted)]">Saving...</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+          </>
+        ) : (
+          <div className="px-4 py-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                  <polyline points="1 4 1 10 7 10" />
+                  <polyline points="23 20 23 14 17 14" />
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">Version History</h3>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {entry?.history?.length
+                    ? `Last ${entry.history.length} saved versions`
+                    : 'No history yet. Edit this entry to save versions.'}
+                </p>
+              </div>
+            </div>
+
+            {entry?.history?.length ? (
+              <div className="space-y-2">
+                {entry.history.map((version, index) => (
+                  <div
+                    key={version.version}
+                    className="p-3 bg-[var(--surface)] rounded-lg border border-[var(--border)] hover:border-[var(--accent)] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-[var(--text-primary)]">
+                        Version {entry.history!.length - index}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {formatDate(version.changedAt)}
+                      </span>
+                    </div>
+
+                    {(version.data.username || version.data.password) && (
+                      <div className="text-xs text-[var(--text-secondary)] mb-2">
+                        {version.data.username && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--text-muted)]">Username:</span>
+                            <span className="font-mono truncate">{version.data.username}</span>
+                          </div>
+                        )}
+                        {version.data.password && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--text-muted)]">Password:</span>
+                            <span className="font-mono">••••••••</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {version.data.notes && (
+                      <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-2">
+                        {version.data.notes}
+                      </p>
+                    )}
+
+                    <button
+                      onClick={() => setShowRestoreConfirm(version)}
+                      className="w-full py-1.5 px-2 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent-bg)] rounded transition-colors"
+                    >
+                      Restore this version
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--surface)] flex items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <p className="text-sm text-[var(--text-secondary)] mb-1">No history yet</p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Each time you edit this entry, a version is saved here.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
+  </div>
   )
 }

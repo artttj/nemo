@@ -84,29 +84,149 @@ pnpm dev:firefox
                     └───────────────┘
 ```
 
-## Security Model
+## Encryption
 
-### Key Derivation
+All cryptographic operations use the [Web Crypto API (SubtleCrypto)](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto), which provides hardware-backed primitives where available. No third-party crypto libraries are used.
 
-1. User authenticates with biometric (WebAuthn PRF)
-2. Authentication signature is hashed with SHA-256
-3. Result combined with salt via PBKDF2 (600,000 iterations)
-4. Final key used for AES-256-GCM encryption
+### Vault Encryption
 
-### Data Flow
+Every vault is encrypted with a unique **vault key**: a random, non-extractable AES-256-GCM key generated at vault creation time. The vault key never leaves memory in plaintext — at rest it is always wrapped (encrypted) by a separate wrapping key.
 
-1. **Create Vault**: Generate passkey → derive encryption key → encrypt empty vault → store in OPFS
-2. **Unlock**: Authenticate with passkey → derive key → decrypt vault from OPFS
-3. **Save**: Auto-encrypt on every change → write to OPFS
-4. **Lock**: Clear in-memory key → clear vault from memory
-5. **Recover**: 12-word BIP-39 phrase → derive recovery key → decrypt vault
+| Parameter | Value |
+|-----------|-------|
+| Algorithm | AES-256-GCM |
+| Key size | 256 bits |
+| IV size | 12 bytes (random, per write) |
+| Authenticated | Yes (GCM provides integrity) |
 
-### Zero-Knowledge
+On every save, a fresh 12-byte IV is generated and the entire vault JSON is re-encrypted. The ciphertext and IV are stored together in OPFS.
 
-- Encryption keys are derived from WebAuthn signature (never stored as-is)
-- Vault is encrypted before storage
-- Server never has access to unencrypted data (local-only MVP)
-- Even if OPFS is compromised, attacker gets encrypted blob
+### Key Wrapping
+
+The vault key is protected using **key wrapping**: `crypto.subtle.wrapKey()` encrypts the vault key with a wrapping key derived from user credentials. Unwrapping happens at unlock time. This means the vault key itself is never stored in plaintext anywhere.
+
+```
+Vault Key (AES-256-GCM)
+  ↓ wrapKey() with AES-GCM + 12-byte IV
+Wrapped Key (stored in OPFS)
+```
+
+Each unlock method (passkey, PIN, recovery phrase) has its own wrapping key and its own wrapped copy of the vault key.
+
+### Key Derivation by Unlock Method
+
+#### Passkey (WebAuthn PRF)
+
+The primary unlock method. The browser authenticator generates a deterministic pseudo-random output via the [PRF extension](https://w3c.github.io/webauthn/#prf-extension), which is unique to the credential and a stored 32-byte salt.
+
+```
+WebAuthn PRF output (32+ bytes, deterministic per credential + salt)
+  ↓ ImportKey as HKDF material
+  ↓ DeriveKey with HKDF-SHA256
+      salt:  stored vault salt (16 bytes)
+      info:  "nemo-vault-key"
+  → Wrapping key (AES-256-GCM)
+  ↓ unwrapKey() with stored wrapped vault key
+  → Vault key (in-memory only)
+```
+
+The PRF output is deterministic: the same credential and the same PRF salt always produce the same output. No password is involved.
+
+#### PIN
+
+A 4–6 digit numeric PIN as an alternative unlock.
+
+```
+PIN digits (UTF-8 encoded)
+  ↓ ImportKey as PBKDF2 material
+  ↓ DeriveKey with PBKDF2-SHA256
+      salt:       32 random bytes (stored with PIN data)
+      iterations: 100,000
+      hash:       SHA-256
+  → Wrapping key (AES-256-GCM)
+  ↓ unwrapKey() with stored wrapped vault key
+  → Vault key (in-memory only)
+```
+
+Failed PIN attempts are tracked. After 5 failures, the PIN is locked for 30 minutes.
+
+#### Recovery Phrase
+
+A 12-word BIP-39 phrase generated at vault creation time. The phrase encodes 128 bits of entropy (11 bits per word from a 2048-word wordlist).
+
+```
+12-word BIP-39 phrase → 128-bit entropy (Uint8Array)
+  ↓ ImportKey as HKDF material
+  ↓ DeriveKey with HKDF-SHA256
+      salt:  "nemo-vault-recovery" (encoded)
+      info:  "encryption-key" (encoded)
+  → Wrapping key (AES-256-GCM)
+  ↓ unwrapKey() with stored wrapped vault key
+  → Vault key (in-memory only)
+```
+
+The recovery phrase is shown once at vault creation and never stored. Losing it means recovery is impossible if other unlock methods fail.
+
+### Unlock Flows Summary
+
+**Create vault**
+1. Register WebAuthn credential, extract PRF output
+2. Generate random vault key (AES-256-GCM, non-extractable)
+3. Derive wrapping key from PRF via HKDF-SHA256
+4. Wrap vault key → store in OPFS
+5. Generate recovery phrase → derive recovery wrapping key → store separate wrapped copy
+6. Encrypt empty vault with vault key → store in OPFS
+
+**Unlock with passkey**
+1. Authenticate with WebAuthn, extract PRF output (same credential + salt = same output)
+2. Derive wrapping key via HKDF-SHA256 using stored salt
+3. Unwrap vault key from OPFS
+4. Decrypt vault with vault key → hold in memory
+
+**Unlock with PIN**
+1. Derive wrapping key from PIN via PBKDF2-SHA256 using stored salt
+2. Unwrap vault key from OPFS
+3. Decrypt vault with vault key → hold in memory
+
+**Unlock with recovery phrase**
+1. Validate words against BIP-39 wordlist, convert to entropy
+2. Derive wrapping key via HKDF-SHA256
+3. Unwrap vault key from recovery backup in OPFS
+4. Decrypt vault with vault key → hold in memory
+
+**Lock**
+1. Overwrite in-memory vault key reference
+2. Clear vault data from memory
+
+### OPFS Storage Layout
+
+Each vault lives in its own directory under the Origin Private File System:
+
+```
+nemo-vault-{vaultId}/
+├── vault.enc        # AES-256-GCM ciphertext + IV (JSON)
+├── metadata.json    # Vault ID, salt, KDF type, timestamps
+└── key.enc          # Wrapped vault key + IV (JSON)
+vault-registry.json  # List of vaults + active vault ID
+```
+
+The `metadata.json` file contains the salt used for key derivation. It is not secret — salts are designed to be public. The ciphertext in `vault.enc` is meaningless without the vault key, which requires a successful authentication to unwrap.
+
+### Random Value Generation
+
+All random values (IVs, salts, keys, credential IDs, challenges) are generated with `crypto.getRandomValues()`, the browser's CSPRNG. UUIDs use `crypto.randomUUID()`.
+
+### Parameters at a Glance
+
+| Operation | Algorithm | Key/Output size | Iterations / Salt |
+|-----------|-----------|-----------------|-------------------|
+| Vault encryption | AES-256-GCM | 256-bit key, 12-byte IV | — |
+| Key wrapping | AES-GCM | — | 12-byte IV |
+| PIN key derivation | PBKDF2-SHA256 | 256-bit | 100,000 iter, 32-byte salt |
+| PRF → wrapping key | HKDF-SHA256 | 256-bit | 16-byte salt, `"nemo-vault-key"` info |
+| Recovery → wrapping key | HKDF-SHA256 | 256-bit | `"nemo-vault-recovery"` salt |
+| Recovery phrase entropy | BIP-39 (2048-word) | 128-bit | — |
+| All random generation | `crypto.getRandomValues()` | — | — |
 
 ## Project Structure
 

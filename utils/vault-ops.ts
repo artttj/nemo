@@ -6,7 +6,8 @@ import type {
   VaultEntry,
   VaultState,
   VaultRegistry,
-  VaultInfo
+  VaultInfo,
+  SitePreferences
 } from "./types"
 import {
   vaultExists,
@@ -18,6 +19,7 @@ import {
   addEntry,
   updateEntry,
   deleteEntry,
+  restoreEntryVersion,
   searchEntries,
   getEntryByUrl,
   exportVault,
@@ -26,7 +28,9 @@ import {
   setActiveVault,
   getActiveVaultId,
   renameVault as renameVaultInStorage,
-  deleteVaultFromRegistry
+  deleteVaultFromRegistry,
+  storeRecoveryData,
+  loadRecoveryData
 } from "./vault"
 import {
   registerCredential,
@@ -40,6 +44,7 @@ import {
   createRecoveryBackup,
   recoverVaultKey
 } from "../vault/recovery"
+import { generateRandomBytes, bufferToBase64 } from "./crypto"
 import {
   setupPin,
   unlockWithPin,
@@ -61,6 +66,46 @@ let vaultState: VaultState = {
 let sessionKey: CryptoKey | null = null
 let autoLockTimeout: ReturnType<typeof setTimeout> | null = null
 
+const INITIAL_VAULT: Vault = {
+  entries: [],
+  settings: { autoLockMinutes: 15, theme: 'dark' }
+}
+
+const SESSION_STATE_NAME = 'nemo_vault_state'
+
+async function persistVaultState(): Promise<void> {
+  try {
+    await chrome.storage.session.set({
+      [SESSION_STATE_NAME]: vaultState
+    })
+  } catch {
+  }
+}
+
+async function restoreVaultState(): Promise<void> {
+  try {
+    const stored = await chrome.storage.session.get(SESSION_STATE_NAME)
+    if (stored[SESSION_STATE_NAME]) {
+      vaultState = stored[SESSION_STATE_NAME]
+    }
+  } catch {
+  }
+}
+
+async function clearSessionState(): Promise<void> {
+  try {
+    await chrome.storage.session.remove([SESSION_STATE_NAME])
+  } catch {
+  }
+}
+
+async function activateVault(vaultKey: CryptoKey, vault: Vault, metadata: VaultMetadata): Promise<void> {
+  sessionKey = vaultKey
+  vaultState = { isUnlocked: true, vault, metadata, lastActivity: Date.now() }
+  await persistVaultState()
+  resetAutoLock()
+}
+
 function getAutoLockMs(): number {
   return (vaultState.vault?.settings.autoLockMinutes ?? 15) * 60 * 1000
 }
@@ -75,6 +120,16 @@ function resetAutoLock(): void {
 }
 
 export async function getVaultState(): Promise<VaultState> {
+  await restoreVaultState()
+  if (vaultState.isUnlocked && !sessionKey) {
+    vaultState = {
+      isUnlocked: false,
+      vault: null,
+      metadata: null,
+      lastActivity: Date.now()
+    }
+    await clearSessionState()
+  }
   return vaultState
 }
 
@@ -85,34 +140,57 @@ export async function checkVaultExists(): Promise<{ exists: boolean; hasCredenti
   return { exists, hasCredential }
 }
 
-export async function createVault(): Promise<MessageResponse<VaultMetadata>> {
+export async function createVault(): Promise<MessageResponse<{ metadata: VaultMetadata; recoveryPhrase: string }>> {
   try {
-    console.log('createVault: starting')
     const credential = await registerCredential()
-    console.log('createVault: credential registered')
     await storeCredential(credential)
-    
+
     const wrappingKey = await deriveKeyFromPrfOutput(credential.prfOutput, credential.prfSalt)
-    
     const { metadata, vaultKey } = await initializeVault(wrappingKey, credential.prfSalt)
-    console.log('createVault: vault initialized')
-    
-    sessionKey = vaultKey
-    
-    const vault = await loadVault(sessionKey)
-    
-    vaultState = {
-      isUnlocked: true,
-      vault,
-      metadata,
-      lastActivity: Date.now()
-    }
-    
-    resetAutoLock()
-    
-    return { success: true, data: metadata }
+
+    const { phrase, encryptedData } = await createRecoveryBackup(vaultKey, metadata.vaultId)
+    await storeRecoveryData(encryptedData)
+
+    await activateVault(vaultKey, INITIAL_VAULT, metadata)
+
+    return { success: true, data: { metadata, recoveryPhrase: phrase } }
   } catch (error) {
-    console.error('createVault error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create vault"
+    }
+  }
+}
+
+export async function createVaultWithOptions(
+  recoveryPhrase: string,
+  enableTouchId: boolean
+): Promise<MessageResponse<{ metadata: VaultMetadata }>> {
+  try {
+    const recoveryKey = await deriveKeyFromPhrase(recoveryPhrase)
+    const salt = bufferToBase64(generateRandomBytes(32))
+
+    let primaryWrappingKey: CryptoKey
+    let wrappingSalt = salt
+
+    if (enableTouchId) {
+      const credential = await registerCredential()
+      await storeCredential(credential)
+      primaryWrappingKey = await deriveKeyFromPrfOutput(credential.prfOutput, credential.prfSalt)
+      wrappingSalt = credential.prfSalt
+    } else {
+      primaryWrappingKey = recoveryKey
+    }
+
+    const { metadata, vaultKey } = await initializeVault(primaryWrappingKey, wrappingSalt)
+
+    const { encryptedData } = await createRecoveryBackup(vaultKey, metadata.vaultId, recoveryPhrase)
+    await storeRecoveryData(encryptedData)
+
+    await activateVault(vaultKey, INITIAL_VAULT, metadata)
+
+    return { success: true, data: { metadata } }
+  } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create vault"
@@ -123,26 +201,17 @@ export async function createVault(): Promise<MessageResponse<VaultMetadata>> {
 export async function createVaultFromRecovery(phrase: string): Promise<MessageResponse<VaultMetadata>> {
   try {
     const recoveryKey = await deriveKeyFromPhrase(phrase)
-    const { generateRandomBytes, bufferToBase64 } = await import('./crypto')
     const salt = bufferToBase64(generateRandomBytes(32))
-    
+
     const { metadata, vaultKey } = await initializeVault(recoveryKey, salt)
-    
-    sessionKey = vaultKey
-    const vault = await loadVault(sessionKey)
-    
-    vaultState = {
-      isUnlocked: true,
-      vault,
-      metadata,
-      lastActivity: Date.now()
-    }
-    
-    resetAutoLock()
-    
+
+    const { encryptedData } = await createRecoveryBackup(vaultKey, metadata.vaultId, phrase)
+    await storeRecoveryData(encryptedData)
+
+    await activateVault(vaultKey, INITIAL_VAULT, metadata)
+
     return { success: true, data: metadata }
   } catch (error) {
-    console.error('createVaultFromRecovery error:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create vault from recovery phrase"
@@ -157,22 +226,20 @@ export async function unlockVaultFromRecovery(phrase: string): Promise<MessageRe
       return { success: false, error: "No vault found. Create a vault first." }
     }
 
+    const recoveryData = await loadRecoveryData()
+    if (!recoveryData) {
+      return { success: false, error: "No recovery data found for this vault." }
+    }
+
     const metadata = await loadVaultMetadata()
     if (!metadata) {
       return { success: false, error: "Failed to load vault metadata" }
     }
 
-    const vaultKey = await recoverVaultKey(phrase, {
-      version: 1,
-      vaultId: metadata.vaultId,
-      wrappedVaultKey: '',
-      salt: metadata.salt,
-      iv: '',
-      createdAt: metadata.createdAt
-    })
-    
+    const vaultKey = await recoverVaultKey(phrase, recoveryData)
+
     sessionKey = vaultKey
-    
+
     const vault = await loadVault(sessionKey)
     if (!vault) {
       return { success: false, error: "Failed to decrypt vault" }
@@ -189,7 +256,6 @@ export async function unlockVaultFromRecovery(phrase: string): Promise<MessageRe
 
     return { success: true, data: vault }
   } catch (error) {
-    console.error("Unlock from recovery error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to unlock vault"
@@ -239,7 +305,6 @@ export async function unlockVault(): Promise<MessageResponse<Vault>> {
 
     return { success: true, data: vault }
   } catch (error) {
-    console.error("Unlock error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to unlock vault"
@@ -259,7 +324,6 @@ export async function setupVaultPin(pin: string, vaultKey?: CryptoKey): Promise<
 
     return { success: true }
   } catch (error) {
-    console.error("Setup PIN error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to set up PIN"
@@ -316,7 +380,6 @@ export async function unlockVaultWithPin(pin: string): Promise<MessageResponse<V
 
     return { success: true, data: vault }
   } catch (error) {
-    console.error("Unlock with PIN error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to unlock vault"
@@ -337,7 +400,6 @@ export async function removeVaultPin(): Promise<MessageResponse> {
     await clearPinData()
     return { success: true }
   } catch (error) {
-    console.error("Remove PIN error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to remove PIN"
@@ -353,12 +415,14 @@ export async function lockVault(): Promise<MessageResponse> {
     metadata: null,
     lastActivity: Date.now()
   }
-  
+
   if (autoLockTimeout) {
     clearTimeout(autoLockTimeout)
     autoLockTimeout = null
   }
-  
+
+  await clearSessionState()
+
   return { success: true }
 }
 
@@ -411,18 +475,40 @@ export async function handleDeleteEntry(id: string): Promise<MessageResponse> {
     if (!sessionKey || !vaultState.vault) {
       return { success: false, error: "Vault is locked" }
     }
-    
+
     const newVault = deleteEntry(vaultState.vault, id)
     await saveVault(newVault, sessionKey)
-    
+
     vaultState.vault = newVault
     vaultState.lastActivity = Date.now()
-    
+
     return { success: true }
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete entry"
+    }
+  }
+}
+
+export async function handleRestoreEntryVersion(entryId: string, version: number): Promise<MessageResponse> {
+  try {
+    if (!sessionKey || !vaultState.vault) {
+      return { success: false, error: "Vault is locked" }
+    }
+
+    const newVault = restoreEntryVersion(vaultState.vault, entryId, version)
+    await saveVault(newVault, sessionKey)
+
+    vaultState.vault = newVault
+    vaultState.lastActivity = Date.now()
+
+    const entry = newVault.entries.find((e) => e.id === entryId)
+    return { success: true, data: entry }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to restore version"
     }
   }
 }
@@ -650,6 +736,83 @@ export async function deleteVault(vaultId: string): Promise<MessageResponse> {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete vault"
+    }
+  }
+}
+
+export async function handleGetSitePreferences(hostname?: string): Promise<MessageResponse> {
+  try {
+    if (!vaultState.vault) {
+      return { success: false, error: "Vault is locked" }
+    }
+
+    const prefs = vaultState.vault.settings.sitePreferences || {}
+    if (hostname) {
+      return { success: true, data: prefs[hostname] || null }
+    }
+    return { success: true, data: prefs }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get site preferences"
+    }
+  }
+}
+
+export async function handleSetSitePreferences(
+  hostname: string,
+  preferences: Partial<SitePreferences>
+): Promise<MessageResponse> {
+  try {
+    if (!sessionKey || !vaultState.vault) {
+      return { success: false, error: "Vault is locked" }
+    }
+
+    const existing = vaultState.vault.settings.sitePreferences?.[hostname]
+    const now = Date.now()
+
+    vaultState.vault.settings.sitePreferences = {
+      ...vaultState.vault.settings.sitePreferences,
+      [hostname]: {
+        hostname,
+        autoFillMode: preferences.autoFillMode ?? existing?.autoFillMode ?? 'ask',
+        defaultUsername: preferences.defaultUsername ?? existing?.defaultUsername,
+        preferredEntryId: preferences.preferredEntryId ?? existing?.preferredEntryId,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now
+      }
+    }
+
+    await saveVault(vaultState.vault, sessionKey)
+    vaultState.lastActivity = Date.now()
+
+    return { success: true, data: vaultState.vault.settings.sitePreferences[hostname] }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to set site preferences"
+    }
+  }
+}
+
+export async function handleDeleteSitePreferences(hostname: string): Promise<MessageResponse> {
+  try {
+    if (!sessionKey || !vaultState.vault) {
+      return { success: false, error: "Vault is locked" }
+    }
+
+    if (vaultState.vault.settings.sitePreferences?.[hostname]) {
+      const { [hostname]: _, ...remaining } = vaultState.vault.settings.sitePreferences
+      vaultState.vault.settings.sitePreferences = remaining
+      await saveVault(vaultState.vault, sessionKey)
+    }
+
+    vaultState.lastActivity = Date.now()
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete site preferences"
     }
   }
 }

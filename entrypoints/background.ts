@@ -4,6 +4,7 @@ import {
   getVaultState,
   createVault,
   createVaultFromRecovery,
+  createVaultWithOptions,
   unlockVault,
   unlockVaultFromRecovery,
   unlockVaultWithPin,
@@ -11,6 +12,7 @@ import {
   handleAddEntry,
   handleUpdateEntry,
   handleDeleteEntry,
+  handleRestoreEntryVersion,
   handleSearchEntries,
   handleGetEntryByUrl,
   handleExportVault,
@@ -26,12 +28,16 @@ import {
   switchVault,
   createNewVaultInRegistry,
   renameVault,
-  deleteVault
+  deleteVault,
+  handleGetSitePreferences,
+  handleSetSitePreferences,
+  handleDeleteSitePreferences
 } from '../utils/vault-ops'
 import { authenticateWithCredential, getStoredCredentialId } from '../utils/auth'
 import { loadVaultMetadata, loadVaultKey } from '../utils/vault'
 import { handleWebAuthnResult } from '../utils/webauthn-handler'
 import { setActiveVault as setVaultActive } from '../utils/vault'
+import { generateRecoveryPhrase } from '../vault/recovery'
 
 export default defineBackground({
   main() {
@@ -47,6 +53,13 @@ export default defineBackground({
         return true
       }
     )
+
+    // Handle keyboard shortcut commands
+    chrome.commands?.onCommand?.addListener((command) => {
+      if (command === 'lock_vault') {
+        lockVault().catch(console.error)
+      }
+    })
   }
 })
 
@@ -114,6 +127,14 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
       }
       return { success: false, error: 'Vault not found' }
 
+    case 'GENERATE_RECOVERY_PHRASE':
+      return { success: true, data: generateRecoveryPhrase() }
+
+    case 'CREATE_VAULT_WITH_OPTIONS': {
+      const setupPayload = message.payload as { recoveryPhrase: string; enableTouchId: boolean }
+      return createVaultWithOptions(setupPayload.recoveryPhrase, setupPayload.enableTouchId)
+    }
+
     case 'CREATE_VAULT':
       return createVault()
 
@@ -154,6 +175,11 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
     case 'DELETE_ENTRY':
       return handleDeleteEntry(message.payload as string)
 
+    case 'RESTORE_ENTRY_VERSION': {
+      const restorePayload = message.payload as { entryId: string; version: number }
+      return handleRestoreEntryVersion(restorePayload.entryId, restorePayload.version)
+    }
+
     case 'GET_ENTRIES': {
       const state = await getVaultState()
       return { success: true, data: state.vault?.entries ?? [] }
@@ -190,6 +216,17 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
     case 'WEBAUTHN_RESULT':
       handleWebAuthnResult(message.payload as { promiseId: string; error?: string; success?: boolean; data?: unknown })
       return { success: true }
+
+    case 'GET_SITE_PREFERENCES':
+      return handleGetSitePreferences(message.payload as string | undefined)
+
+    case 'SET_SITE_PREFERENCES': {
+      const prefsPayload = message.payload as { hostname: string; preferences: { autoFillMode?: 'always' | 'never' | 'ask'; defaultUsername?: string; preferredEntryId?: string } }
+      return handleSetSitePreferences(prefsPayload.hostname, prefsPayload.preferences)
+    }
+
+    case 'DELETE_SITE_PREFERENCES':
+      return handleDeleteSitePreferences(message.payload as string)
 
     default:
       return { success: false, error: 'Unknown message type' }

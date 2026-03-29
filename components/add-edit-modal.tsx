@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import type { VaultEntry } from '~/utils/types'
+import { TOTPSetup } from './totp-setup'
+import { TOTPDisplay } from './totp-display'
+import { isValidTOTPSecret } from '~/utils/totp'
+import type { TOTPConfig } from '~/utils/totp'
+import { generatePassword } from '~/utils/crypto'
 
 export function AddEditModal({
   isOpen,
@@ -20,6 +25,8 @@ export function AddEditModal({
   const [masterKey, setMasterKey] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
+  const [totpConfig, setTOTPConfig] = useState<TOTPConfig | undefined>(undefined)
+  const [showTOTPSetup, setShowTOTPSetup] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -29,49 +36,41 @@ export function AddEditModal({
         setPassword(entry.password || '')
         setUrl(entry.url || '')
         setNotes(entry.notes || '')
-        setMasterKey((entry as any).masterKey || '')
+        setTOTPConfig(entry.totp)
       } else {
         setTitle('')
         setUsername('')
         setPassword('')
         setUrl('')
         setNotes('')
-        setMasterKey('')
+        setTOTPConfig(undefined)
       }
       setShowPassword(false)
       setShowGenerateConfirm(false)
+      setShowTOTPSetup(false)
     }
   }, [isOpen, entry])
 
   const handleSave = () => {
     if (!title.trim()) return
-    
+
     const data: any = {
       title: title.trim()
     }
-    
+
     if (username.trim()) data.username = username.trim()
     if (password) data.password = password
     if (url.trim()) data.url = url.trim()
     if (notes.trim()) data.notes = notes.trim()
-    if (masterKey.trim()) data.masterKey = masterKey.trim()
-    
+    if (totpConfig) data.totp = totpConfig
+
     onSave(data)
     onClose()
   }
 
-  const generatePassword = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^*'
-    const limit = 256 - (256 % chars.length)
-    let result = ''
-    while (result.length < 20) {
-      const bytes = new Uint8Array(32)
-      crypto.getRandomValues(bytes)
-      for (let i = 0; i < bytes.length && result.length < 20; i++) {
-        if (bytes[i] < limit) result += chars.charAt(bytes[i] % chars.length)
-      }
-    }
-    setPassword(result)
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword({ length: 20 })
+    setPassword(newPassword)
     setShowPassword(true)
     setShowGenerateConfirm(false)
   }
@@ -80,7 +79,7 @@ export function AddEditModal({
     if (entry && password) {
       setShowGenerateConfirm(true)
     } else {
-      generatePassword()
+      handleGeneratePassword()
     }
   }
 
@@ -113,7 +112,7 @@ export function AddEditModal({
                 Keep existing
               </button>
               <button
-                onClick={generatePassword}
+                onClick={handleGeneratePassword}
                 className="flex-1 py-2 px-3 bg-[var(--danger)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Replace
@@ -229,14 +228,44 @@ export function AddEditModal({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Recovery phrase</label>
-              <textarea
-                value={masterKey}
-                onChange={(e) => setMasterKey(e.target.value)}
-                placeholder="12-word recovery phrase (optional)"
-                rows={2}
-                className="w-full nemo-input px-3 py-2 text-sm resize-none"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-[var(--text-secondary)]">Two-factor authentication</label>
+                {!showTOTPSetup && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTOTPSetup(true)}
+                    className="text-[11px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+                  >
+                    {totpConfig ? 'Edit' : 'Add'}
+                  </button>
+                )}
+              </div>
+              {showTOTPSetup ? (
+                <TOTPSetup
+                  existingConfig={totpConfig}
+                  onSave={(config) => {
+                    setTOTPConfig(config)
+                    setShowTOTPSetup(false)
+                  }}
+                  onCancel={() => {
+                    setTOTPConfig(undefined)
+                    setShowTOTPSetup(false)
+                  }}
+                />
+              ) : totpConfig ? (
+                <div className="p-3 bg-[var(--surface)] rounded-lg">
+                  <TOTPDisplay config={totpConfig} compact />
+                </div>
+              ) : (
+                <div
+                  onClick={() => setShowTOTPSetup(true)}
+                  className="p-3 border border-dashed border-[var(--border)] rounded-lg cursor-pointer hover:border-[var(--accent)] transition-colors text-center"
+                >
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    Click to set up 2FA
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
