@@ -19,14 +19,25 @@ export default defineContentScript({
   allFrames: true,
 
   main() {
-    console.log('[Nemo] Content script loaded')
-
     let overlayElement: HTMLElement | null = null
     let nemoButton: HTMLElement | null = null
     let generatorOverlay: HTMLElement | null = null
     let isVisible = false
     let isGeneratorVisible = false
     let currentField: HTMLInputElement | null = null
+
+    const colors = {
+      darkBg: '#1A1A1A',
+      darkerBg: '#0D0D0D',
+      hoverBg: '#2A2A2A',
+      cardBg: '#333333',
+      textPrimary: '#FFFFFF',
+      textSecondary: '#737373',
+      textMuted: '#525252',
+      gold: '#C98700',
+      border: 'rgba(255,255,255,0.1)',
+      borderSubtle: 'rgba(255,255,255,0.05)'
+    }
 
     async function queryVaultForUrl(url: string) {
       try {
@@ -132,17 +143,16 @@ export default defineContentScript({
         overlayElement = document.createElement('div')
         overlayElement.innerHTML = `
           <div style="
-            position: fixed;
             z-index: 2147483647;
-            background: white;
-            border: 1px solid rgba(0,0,0,0.08);
+            background: ${colors.darkBg};
+            border: 1px solid ${colors.border};
             border-radius: 12px;
             padding: 16px;
             min-width: 200px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 13px;
-            color: #737373;
+            color: ${colors.textSecondary};
           ">
             No saved passwords found
           </div>
@@ -151,39 +161,78 @@ export default defineContentScript({
         overlayElement = document.createElement('div')
         overlayElement.innerHTML = `
           <div style="
-            position: fixed;
             z-index: 2147483647;
-            background: white;
-            border: 1px solid rgba(0,0,0,0.08);
+            background: ${colors.darkBg};
+            border: 1px solid ${colors.border};
             border-radius: 12px;
-            min-width: 280px;
-            max-height: 300px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            min-width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           ">
             <div style="
-              padding: 12px 16px;
-              background: #FAFAFA;
-              border-bottom: 1px solid rgba(0,0,0,0.08);
-              font-size: 13px;
+              padding: 16px 20px;
+              background: ${colors.darkerBg};
+              border-bottom: 1px solid ${colors.border};
+              font-size: 14px;
               font-weight: 600;
-              color: #1A1A1A;
+              color: ${colors.textPrimary};
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
             ">
-              Nemo Password Manager
+              <span>Nemo Password Manager</span>
+              <span style="font-size: 12px; color: ${colors.textSecondary}; font-weight: 400;">${entries.length} entries</span>
             </div>
             ${entries.map(entry => `
               <div class="nemo-entry-item" style="
-                padding: 12px 16px;
+                padding: 16px 20px;
                 cursor: pointer;
-                border-bottom: 1px solid rgba(0,0,0,0.04);
+                border-bottom: 1px solid ${colors.borderSubtle};
                 transition: background 0.15s;
+                display: flex;
+                align-items: center;
+                gap: 12px;
               ">
-                <div style="font-size: 14px; font-weight: 500; color: #1A1A1A; margin-bottom: 2px;">
-                  ${escapeHtml(entry.title)}
+                <div style="
+                  width: 40px;
+                  height: 40px;
+                  background: ${entry.favorite ? colors.gold : colors.hoverBg};
+                  border-radius: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: ${entry.favorite ? colors.textPrimary : colors.textSecondary};
+                  font-size: 16px;
+                  font-weight: 600;
+                  flex-shrink: 0;
+                ">
+                  ${escapeHtml(entry.title.charAt(0).toUpperCase())}
                 </div>
-                <div style="font-size: 12px; color: #737373;">
-                  ${escapeHtml(entry.username || 'No username')}
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-size: 15px; font-weight: 500; color: ${colors.textPrimary}; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${escapeHtml(entry.title)}
+                  </div>
+                  <div style="font-size: 13px; color: ${colors.textSecondary}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${escapeHtml(entry.username || 'No username')}
+                  </div>
+                  ${entry.url ? `<div style="font-size: 11px; color: ${colors.textMuted}; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(new URL(entry.url).hostname)}</div>` : ''}
+                </div>
+                <div style="
+                  width: 28px;
+                  height: 28px;
+                  background: ${colors.hoverBg};
+                  border-radius: 6px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: ${colors.textSecondary};
+                  flex-shrink: 0;
+                ">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
                 </div>
               </div>
             `).join('')}
@@ -193,7 +242,7 @@ export default defineContentScript({
         const items = overlayElement.querySelectorAll('.nemo-entry-item')
         items.forEach((item, index) => {
           item.addEventListener('mouseenter', () => {
-            (item as HTMLElement).style.background = '#F5F5F5'
+            (item as HTMLElement).style.background = colors.hoverBg
           })
           item.addEventListener('mouseleave', () => {
             (item as HTMLElement).style.background = 'transparent'
@@ -219,14 +268,30 @@ export default defineContentScript({
     function positionOverlay() {
       if (!overlayElement || !currentField) return
 
+      const innerContainer = overlayElement.querySelector('div') as HTMLElement
+      if (!innerContainer) return
+
       const rect = currentField.getBoundingClientRect()
-      const overlay = overlayElement.querySelector('div') as HTMLElement
+      const viewportHeight = window.innerHeight
+      const viewportWidth = window.innerWidth
+      const overlayHeight = 400
 
-      const top = rect.bottom + 8 + window.scrollY
-      const left = rect.left + window.scrollX
+      let top = rect.bottom + 8
+      let right = viewportWidth - rect.right
 
-      overlayElement.style.top = `${top}px`
-      overlayElement.style.left = `${left}px`
+      if (top + overlayHeight > viewportHeight) {
+        top = rect.top - overlayHeight - 8
+      }
+
+      if (right < 16) {
+        right = 16
+      }
+
+      innerContainer.style.cssText = innerContainer.style.cssText.replace(/position:[^;]+;/, '').replace(/top:[^;]+;/, '').replace(/right:[^;]+;/, '') + `
+        position: fixed;
+        top: ${top}px;
+        right: ${right}px;
+      `
     }
 
     function hideOverlay() {
@@ -476,16 +541,10 @@ export default defineContentScript({
 
       field.dataset.nemoButton = 'true'
 
-      const wrapper = document.createElement('div')
-      wrapper.style.cssText = `
-        position: relative;
-        display: inline-block;
-        width: 100%;
-      `
-
-      // Main Nemo button (existing)
+      // Main Nemo button
       const button = document.createElement('button')
       button.type = 'button'
+      button.dataset.nemoAction = 'fill'
       button.innerHTML = `
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -494,12 +553,9 @@ export default defineContentScript({
       `
       button.style.cssText = `
         position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
         width: 28px;
         height: 28px;
-        background: #C98700;
+        background: #1A1A1A;
         border: none;
         border-radius: 6px;
         cursor: pointer;
@@ -508,13 +564,17 @@ export default defineContentScript({
         justify-content: center;
         color: white;
         padding: 0;
-        z-index: 1000;
-        transition: all 0.2s;
+        z-index: 2147483646;
+        transition: opacity 0.2s, transform 0.2s;
+        margin: 0;
+        opacity: 1;
+        pointer-events: auto;
       `
 
-      // Generator button (new)
+      // Generator button
       const genButton = document.createElement('button')
       genButton.type = 'button'
+      genButton.dataset.nemoAction = 'generate'
       genButton.innerHTML = `
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -525,9 +585,6 @@ export default defineContentScript({
       `
       genButton.style.cssText = `
         position: absolute;
-        right: 40px;
-        top: 50%;
-        transform: translateY(-50%);
         width: 28px;
         height: 28px;
         background: #333;
@@ -539,34 +596,65 @@ export default defineContentScript({
         justify-content: center;
         color: #00FF88;
         padding: 0;
-        z-index: 1000;
+        z-index: 2147483646;
         transition: all 0.2s;
+        margin: 0;
         opacity: 0;
         pointer-events: none;
       `
 
+      // Position buttons relative to the field
+      const updatePositions = () => {
+        const rect = field.getBoundingClientRect()
+        const scrollX = window.scrollX
+        const scrollY = window.scrollY
+
+        // Right edge, vertically centered
+        button.style.left = `${rect.right - 36 + scrollX}px`
+        button.style.top = `${rect.top + (rect.height - 28) / 2 + scrollY}px`
+
+        // Left of main button
+        genButton.style.left = `${rect.right - 72 + scrollX}px`
+        genButton.style.top = `${rect.top + (rect.height - 28) / 2 + scrollY}px`
+      }
+
+      // Initial position
+      updatePositions()
+
+      // Update on scroll and resize
+      window.addEventListener('scroll', updatePositions, { passive: true })
+      window.addEventListener('resize', updatePositions)
+
+      // Update when field moves (for SPAs with animations)
+      const positionObserver = new MutationObserver(updatePositions)
+      positionObserver.observe(document.body, { attributes: true, childList: true, subtree: true })
+
+      // Add to document body (not field parent) to avoid layout issues
+      document.body.appendChild(button)
+      document.body.appendChild(genButton)
+
       // Hover effects
       button.addEventListener('mouseenter', () => {
-        button.style.background = '#D99600'
-        button.style.transform = 'translateY(-50%) scale(1.05)'
+        button.style.background = '#333333'
+        button.style.transform = 'scale(1.05)'
       })
 
       button.addEventListener('mouseleave', () => {
-        button.style.background = '#C98700'
-        button.style.transform = 'translateY(-50%) scale(1)'
+        button.style.background = '#1A1A1A'
+        button.style.transform = 'scale(1)'
       })
 
       genButton.addEventListener('mouseenter', () => {
         genButton.style.background = '#444'
-        genButton.style.transform = 'translateY(-50%) scale(1.05)'
+        genButton.style.transform = 'scale(1.05)'
       })
 
       genButton.addEventListener('mouseleave', () => {
         genButton.style.background = '#333'
-        genButton.style.transform = 'translateY(-50%) scale(1)'
+        genButton.style.transform = 'scale(1)'
       })
 
-      // Click handlers
+      // Click handlers - don't prevent default on the field itself
       button.addEventListener('click', async (e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -612,45 +700,83 @@ export default defineContentScript({
         createGeneratorOverlay(field)
       })
 
-      const parent = field.parentElement
-      parent.insertBefore(wrapper, field)
-      wrapper.appendChild(field.cloneNode(true))
-      wrapper.appendChild(button)
-      wrapper.appendChild(genButton)
-      parent.replaceChild(wrapper, field)
-
-      // Re-reference the field in wrapper
-      const newField = wrapper.querySelector('input') as HTMLInputElement
-      newField.addEventListener('focus', () => {
-        currentField = newField
-        // Show generator button on focus
+      // Show/hide generator button on field focus
+      field.addEventListener('focus', () => {
+        currentField = field
+        updatePositions()
         genButton.style.opacity = '1'
         genButton.style.pointerEvents = 'auto'
       })
 
-      newField.addEventListener('blur', () => {
-        // Hide generator button on blur (with delay to allow clicking)
+      field.addEventListener('blur', () => {
         setTimeout(() => {
-          if (!genButton.matches(':hover')) {
+          if (!genButton.matches(':hover') && !button.matches(':hover')) {
             genButton.style.opacity = '0'
             genButton.style.pointerEvents = 'none'
           }
         }, 200)
       })
 
-      // Show generator on hover over field
-      wrapper.addEventListener('mouseenter', () => {
-        genButton.style.opacity = '1'
-        genButton.style.pointerEvents = 'auto'
+      // Show buttons when hovering near the field
+      const showButtons = () => {
+        updatePositions()
+        button.style.opacity = '1'
+        button.style.pointerEvents = 'auto'
+        genButton.style.opacity = field === document.activeElement ? '1' : '0'
+        genButton.style.pointerEvents = field === document.activeElement ? 'auto' : 'none'
+      }
+
+      const hideButtons = () => {
+        setTimeout(() => {
+          if (!genButton.matches(':hover') && !button.matches(':hover') && field !== document.activeElement) {
+            button.style.opacity = '0'
+            button.style.pointerEvents = 'none'
+            genButton.style.opacity = '0'
+            genButton.style.pointerEvents = 'none'
+          }
+        }, 200)
+      }
+
+      // Track field visibility and position
+      const fieldObserver = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              showButtons()
+            } else {
+              button.style.opacity = '0'
+              genButton.style.opacity = '0'
+            }
+          })
+        },
+        { threshold: 0.5 }
+      )
+
+      fieldObserver.observe(field)
+
+      // Cleanup on field removal
+      const cleanupObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.removedNodes.forEach((node) => {
+            if (node === field || (node instanceof Element && node.contains(field))) {
+              button.remove()
+              genButton.remove()
+              cleanupObserver.disconnect()
+              positionObserver.disconnect()
+              fieldObserver.disconnect()
+              window.removeEventListener('scroll', updatePositions)
+              window.removeEventListener('resize', updatePositions)
+            }
+          })
+        })
       })
 
-      wrapper.addEventListener('mouseleave', () => {
-        const active = document.activeElement
-        if (active !== newField && !genButton.matches(':hover') && !button.matches(':hover')) {
-          genButton.style.opacity = '0'
-          genButton.style.pointerEvents = 'none'
-        }
-      })
+      if (field.parentElement) {
+        cleanupObserver.observe(field.parentElement, { childList: true })
+      }
+
+      // Initially show
+      showButtons()
     }
 
     function detectAndAttachButtons() {

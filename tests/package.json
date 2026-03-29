@@ -1,0 +1,17 @@
+{
+  "name": "nemo-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e:google": "node e2e/google-autofill.spec.mjs",
+    "test:e2e:github": "echo 'GitHub test not yet implemented'",
+    "test:unit": "echo 'Unit tests not yet implemented'",
+    "test": "npm run test:e2e:google"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  },
+  "dependencies": {
+    "puppeteer": "^24.40.0"
+  }
+}

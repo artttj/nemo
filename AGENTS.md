@@ -283,6 +283,26 @@ interface VaultMetadata {
 - OPFS files stored at browser's origin storage
 - WebAuthn requires HTTPS or localhost
 
+## Code Style
+
+### Comments
+
+**Do not add comments to code.** Code should be self-explanatory through clear naming and structure. Only add comments when:
+- Explaining a non-obvious security consideration
+- Documenting a workaround for a browser bug
+- Marking intentional complexity that cannot be simplified
+
+Remove comments during code cleanup phase.
+
+### After Editing Code
+
+After completing edits, clean up:
+1. Remove any comments added during implementation
+2. Ensure code is self-explanatory
+3. Remove temporary debugging code
+4. Run type checks: `pnpm compile`
+5. Build the extension: `pnpm build`
+
 ## Testing
 
 No automated tests currently. Manual testing:
