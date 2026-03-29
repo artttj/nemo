@@ -4,7 +4,7 @@ const ALGORITHM = "AES-GCM"
 const KEY_LENGTH = 256
 const SALT_LENGTH = 16
 const IV_LENGTH = 12
-const PBKDF2_ITERATIONS = 100000
+const PBKDF2_ITERATIONS = 600000
 const WRAPPING_KEY_LENGTH = 256
 
 export async function generateSalt(length: number = SALT_LENGTH): Promise<string> {
@@ -261,13 +261,17 @@ export function generateSecurePassword(options: PasswordOptions = {}): string {
   }
 
   let password = ''
+  // Ensure at least one character from each pool - use proper rejection sampling
   for (const pool of pools) {
-    const bytes = crypto.getRandomValues(new Uint8Array(1))
-    password += pool.charAt(bytes[0] % pool.length)
+    const limit = 256 - (256 % pool.length)
+    let byte: number
+    do {
+      byte = crypto.getRandomValues(new Uint8Array(1))[0]
+    } while (byte >= limit)
+    password += pool.charAt(byte % pool.length)
   }
 
   const allChars = pools.join('')
-  const remaining = clampedLength - password.length
   const limit = 256 - (256 % allChars.length)
 
   while (password.length < clampedLength) {

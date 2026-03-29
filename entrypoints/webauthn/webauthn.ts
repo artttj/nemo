@@ -4,7 +4,10 @@ import { bufferToBase64, base64ToBuffer, generateRandomBytes } from '~/utils/cry
 
 const RP_ID = 'nemo.local'
 
-console.log('WebAuthn page loaded')
+// Debug logging disabled in production
+const DEBUG = false
+const debugLog = DEBUG ? console.log.bind(console) : () => {}
+const debugError = DEBUG ? console.error.bind(console) : () => {}
 
 async function handleAuth() {
   const params = new URLSearchParams(window.location.search)
@@ -12,8 +15,8 @@ async function handleAuth() {
   const promiseId = params.get('promiseId')
   const credentialId = params.get('credentialId')
   const salt = params.get('salt')
-  
-  console.log('WebAuthn params:', { action, promiseId, credentialId, salt })
+
+  debugLog('WebAuthn params:', { action, promiseId, credentialId: credentialId ? '[REDACTED]' : null, salt: salt ? '[REDACTED]' : null })
   
   const statusEl = document.getElementById('status')!
   const errorEl = document.getElementById('error')!
@@ -21,18 +24,18 @@ async function handleAuth() {
   if (!promiseId) {
     errorEl.style.display = 'block'
     errorEl.textContent = 'Missing promiseId'
-    console.error('Missing promiseId')
+    debugError('Missing promiseId')
     return
   }
   
   try {
     if (action === 'register') {
       statusEl.textContent = 'Creating vault...'
-      console.log('Starting credential registration')
+      debugLog('Starting credential registration')
       const result = await registerCredential()
-      console.log('Registration successful:', result)
+      debugLog('Registration successful')
       await sendResult({ success: true, data: result, promiseId })
-      console.log('Result sent to background')
+      debugLog('Result sent to background')
       
       const spinnerEl = document.getElementById('spinner')
       const iconEl = document.getElementById('icon')
@@ -48,10 +51,10 @@ async function handleAuth() {
       }
     } else if (action === 'authenticate' && credentialId && salt) {
       statusEl.textContent = 'Verifying identity...'
-      console.log('Starting authentication')
+      debugLog('Starting authentication')
       const result = await authenticateWithCredential(credentialId, salt)
       await sendResult({ success: true, data: result, promiseId })
-      console.log('Result sent to background')
+      debugLog('Result sent to background')
       
       const spinnerEl = document.getElementById('spinner')
       const iconEl = document.getElementById('icon')
@@ -69,7 +72,7 @@ async function handleAuth() {
       throw new Error('Invalid request')
     }
   } catch (err) {
-    console.error('WebAuthn error:', err)
+    debugError('WebAuthn error:', err)
     statusEl.textContent = 'Authentication failed'
     errorEl.style.display = 'block'
     errorEl.textContent = err instanceof Error ? err.message : 'Unknown error'
@@ -172,9 +175,9 @@ async function sendResult(result: Record<string, unknown>) {
       type: 'WEBAUTHN_RESULT',
       payload: result
     })
-    console.log('Message sent successfully')
+    debugLog('Message sent successfully')
   } catch (err) {
-    console.error('Failed to send result:', err)
+    debugError('Failed to send result:', err)
     alert('Failed to communicate with extension. Please try again.')
   }
 }

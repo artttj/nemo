@@ -1,36 +1,18 @@
 # Nemo Password Manager
 
-A local-first password manager extension. No accounts, no tracking. Your passwords stay encrypted with keys only you control. Optional Cloudflare D1 sync for cross-device access.
+A local-first password manager extension. No accounts, no tracking. Your passwords stay encrypted with keys only you control.
 
-## Disclaimer
+## Features
 
-This is a hobby project, not a commercial product. I'm not a security company. Use at your own risk.
-
-I cannot access your passwords. If you lose your passkey and recovery phrase, your vault is gone. I cannot help you recover it.
-
-Export your vault regularly. You are responsible for your own backups.
-
-## What it does
-
-- Multiple vaults (work, personal, whatever)
+- Multiple vaults (work, personal, etc.)
 - Biometric unlock via WebAuthn (Touch ID, Face ID, Windows Hello)
-- PIN as backup unlock method
-- AES-256-GCM encryption with PBKDF2 key derivation
-- 12-word recovery phrases (BIP-39)
+- PIN backup unlock method
+- AES-256-GCM encryption with PBKDF2 key derivation (600,000 iterations)
+- 12-word BIP-39 recovery phrases
 - Auto-fill on login pages
 - Export/import for backups
-- Optional Cloudflare D1 sync for cross-device access
-
-<img src="images/locked.png" alt="Nemo extension popup" height="400" />
-
-## Tech
-
-- WXT for the extension framework
-- Web Crypto API for all crypto (no third-party libs)
-- WebAuthn PRF for deterministic key derivation
-- OPFS for local storage
-- React + Tailwind + TypeScript
-- Tactical dark theme because I like how it looks
+- Optional sync: Cloudflare D1 or custom backend
+- Light/dark/system theme
 
 ## Install
 
@@ -49,29 +31,21 @@ pnpm build
 
 Firefox: `pnpm dev:firefox`
 
-## Cloudflare D1 Sync (Optional)
+## Encryption
 
-You can sync your encrypted vault across devices using Cloudflare D1. Your data remains encrypted end-to-end - Cloudflare only stores the ciphertext.
-
-See [CLOUDFLARE_SYNC.md](CLOUDFLARE_SYNC.md) for setup instructions.
-
-## How encryption works
-
-Every vault has its own AES-256-GCM key generated at creation. The key never touches disk in plaintext. Instead, it gets wrapped (encrypted) by a key derived from your unlock method.
+Every vault has a unique AES-256-GCM key generated at creation. The key never touches disk in plaintext—it gets wrapped (encrypted) by keys derived from your unlock methods.
 
 ### Passkey
 
-The browser authenticator generates a deterministic pseudo-random output via the PRF extension. Same credential + same salt = same output, every time. That output derives your wrapping key via HKDF-SHA256.
-
-No password involved. The key comes from the authenticator hardware.
+Uses WebAuthn PRF extension for deterministic key derivation. Same credential + same salt = same wrapping key via HKDF-SHA256.
 
 ### PIN
 
-4-6 digits, PBKDF2-SHA256 with 100,000 iterations. After 5 failed attempts, it locks for 30 minutes.
+4-6 digits with PBKDF2-SHA256 (600,000 iterations). Locks for 30 minutes after 5 failed attempts.
 
 ### Recovery phrase
 
-12 words from BIP-39's 2048-word list. Encodes 128 bits of entropy. You see it once when creating the vault. If you lose it and lose your passkey, you lose access.
+12 words from BIP-39 wordlist. Verify and store it safely—you need it if you lose your passkey.
 
 ### Key flow
 
@@ -80,64 +54,67 @@ Passkey/PIN/Recovery → Key derivation → Wrapping key (AES-256)
                                           ↓
                                     unwrapKey()
                                           ↓
-                                    Vault key (in-memory only)
+                                    Vault key (memory only)
                                           ↓
                                     Decrypt vault
 ```
 
-Each unlock method stores its own wrapped copy of the vault key. The vault itself is encrypted with a fresh 12-byte IV on every save.
+## Storage
 
-### OPFS layout
+Uses Origin Private File System (OPFS):
 
 ```
 nemo-vault-{id}/
-├── vault.enc      # Encrypted vault data + IV
-├── metadata.json  # Salt, KDF type, timestamps
+├── vault.enc      # Encrypted vault + IV
+├── metadata.json  # Salt, KDF, timestamps
 └── key.enc        # Wrapped vault key
 
-vault-registry.json  # List of vaults + active ID
+vault-registry.json  # Vault list + active ID
 ```
 
-The metadata is public. Salts aren't secrets. The ciphertext needs an unwrapped vault key to mean anything.
+Metadata and salts are public. Ciphertext requires the unwrapped vault key.
 
-## Project structure
+## Sync Options
+
+### Cloudflare D1
+
+Sync encrypted vaults across devices. End-to-end encrypted—Cloudflare stores ciphertext only.
+
+See [CLOUDFLARE_SYNC.md](CLOUDFLARE_SYNC.md) for setup.
+
+### Custom Backend
+
+Self-hosted sync server. See [BACKEND_SETUP.md](BACKEND_SETUP.md) and [SYNC_SETUP.md](SYNC_SETUP.md).
+
+## Project Structure
 
 ```
 entrypoints/
-├── popup/          # Main popup UI
+├── popup/          # Main UI
 ├── background.ts   # Service worker
-├── content.ts      # Auto-fill script
+├── content.ts      # Auto-fill
 └── webauthn/       # Passkey handling
 
 vault/
 ├── crypto.ts       # AES-GCM, PBKDF2, HKDF
-├── storage.ts       # OPFS abstraction
-├── recovery.ts      # BIP-39 phrases
-├── vault.ts         # Data model
-└── manager.ts       # Orchestration
+├── storage.ts      # OPFS
+├── recovery.ts     # BIP-39
+├── vault.ts        # Data model
+└── custom-sync.ts  # Custom backend sync
 
 components/         # React components
-utils/              # Legacy utilities (migrating)
+utils/              # Utilities
 ```
 
-## Crypto parameters
+## Crypto Parameters
 
-| Operation | Algorithm | Key size | Salt/Iterations |
-|-----------|-----------|----------|-----------------|
-| Vault encryption | AES-256-GCM | 256-bit | 12-byte IV per write |
-| Key wrapping | AES-GCM | — | 12-byte IV |
-| PIN derivation | PBKDF2-SHA256 | 256-bit | 100,000 iter, 32-byte salt |
-| PRF → wrapping | HKDF-SHA256 | 256-bit | 16-byte salt |
-| Recovery → wrapping | HKDF-SHA256 | 256-bit | fixed salt |
-| Random values | crypto.getRandomValues() | — | — |
-
-## What works
-
-Create multiple vaults, unlock with passkey or PIN, add/edit/delete entries, auto-fill on websites, export for backup.
-
-## What doesn't
-
-WebAuthn PRF support varies by browser. Safari works but has quirks.
+| Operation | Algorithm | Parameters |
+|-----------|-----------|------------|
+| Vault encryption | AES-256-GCM | 256-bit key, 12-byte IV |
+| Key wrapping | AES-GCM | 256-bit key, 12-byte IV |
+| PIN derivation | PBKDF2-SHA256 | 600,000 iterations, 32-byte salt |
+| PRF derivation | HKDF-SHA256 | 256-bit, 16-byte salt |
+| Recovery | HKDF-SHA256 | Fixed salt per vault |
 
 ## License
 
@@ -146,3 +123,7 @@ Apache 2.0. See [LICENSE](LICENSE).
 ## Privacy
 
 See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+
+---
+
+**Disclaimer:** This is a hobby project, not a commercial security product. Use at your own risk. Export your vault regularly. If you lose your recovery phrase and passkey, your data cannot be recovered.

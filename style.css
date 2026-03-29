@@ -5,39 +5,49 @@
 @tailwind utilities;
 
 :root {
-  --void: #F8F8F6;
-  --void-elevated: #FFFFFF;
-  --surface: #F0F0ED;
-  --surface-hover: #E6E6E2;
+  --void: #F5F5F3;
+  --void-elevated: #FAFAF8;
+  --void-sunken: #EEEEEC;
+  --surface: #FFFFFF;
+  --surface-hover: #F0F0EE;
 
-  --accent: #1A1A18;
-  --accent-hover: #2C2C28;
+  --accent: #1C1917;
+  --accent-hover: #2D2A26;
   --accent-text: #FFFFFF;
-  --accent-glow: rgba(26, 26, 24, 0.08);
-  --accent-light: rgba(26, 26, 24, 0.04);
+  --accent-glow: rgba(28, 25, 23, 0.08);
+  --accent-light: rgba(28, 25, 23, 0.04);
 
   --text-primary: #1A1A18;
-  --text-secondary: #4D4D48;
-  --text-tertiary: #78786F;
-  --text-muted: #A8A89E;
+  --text-secondary: #4A4A48;
+  --text-tertiary: #7A7A76;
+  --text-muted: #A0A09A;
 
-  --danger: #D93025;
-  --danger-bg: rgba(217, 48, 37, 0.06);
-  --danger-light: rgba(217, 48, 37, 0.04);
-  --success: #16A34A;
+  --danger: #991B1B;
+  --danger-bg: rgba(153, 27, 27, 0.08);
+  --danger-light: rgba(153, 27, 27, 0.04);
+  --success: #166534;
   --success-light: rgba(22, 163, 74, 0.08);
+  --warning: #B45309;
+  --warning-light: rgba(180, 83, 9, 0.08);
 
-  --border: rgba(0, 0, 0, 0.06);
-  --border-hover: rgba(0, 0, 0, 0.11);
-  --border-strong: rgba(0, 0, 0, 0.16);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.20);
+  --border-focus: rgba(0, 0, 0, 0.24);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(0, 0, 0, 0.02);
-  --shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02);
-  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
 
-  --void-dark: #1A1A18;
-  --void-dark-elevated: #2C2C28;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --void-dark: #121211;
+  --void-dark-elevated: #1A1A18;
   --text-dark-primary: #FFFFFF;
   --text-dark-secondary: rgba(255, 255, 255, 0.7);
   --text-dark-tertiary: rgba(255, 255, 255, 0.5);
@@ -84,7 +94,7 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -93,17 +103,17 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-hover);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--text-tertiary);
 }
 
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
-  border-radius: 4px;
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 ::selection {
@@ -167,14 +177,14 @@ textarea::placeholder {
 }
 
 .nemo-input {
-  background: var(--void-elevated);
+  background: var(--void-sunken);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
   font-size: 14px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .nemo-input:focus {
@@ -192,11 +202,11 @@ textarea::placeholder {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   font-size: 14px;
-  border-radius: 10px;
-  padding: 14px 20px;
-  min-height: 48px;
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
+  min-height: 40px;
   transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .nemo-button-primary:hover {
@@ -216,11 +226,11 @@ textarea::placeholder {
   font-weight: 500;
   font-size: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 20px;
-  min-height: 48px;
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
+  min-height: 40px;
   transition: background 0.15s ease, border-color 0.15s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
 }
 
 .nemo-button-secondary:hover {
@@ -239,7 +249,7 @@ textarea::placeholder {
   font-weight: 500;
   font-size: 14px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: color 0.15s ease, background 0.15s ease;
 }
 
@@ -251,7 +261,7 @@ textarea::placeholder {
 .nemo-card {
   background: var(--void-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-shadow: var(--shadow-sm);
 }
@@ -267,8 +277,8 @@ textarea::placeholder {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
   transition: color 0.15s ease, background 0.15s ease;
 }
 
@@ -283,8 +293,8 @@ textarea::placeholder {
 }
 
 .nemo-status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--accent);
 }
@@ -292,12 +302,12 @@ textarea::placeholder {
 .nemo-status-dot::after {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--accent);
-  opacity: 0.15;
-  animation: nemo-pulse 2.5s ease-in-out infinite;
+  opacity: 0.12;
+  animation: nemo-pulse 2s ease-in-out infinite;
 }
 
 .nemo-copy-feedback {
@@ -344,5 +354,41 @@ textarea::placeholder {
 
 .nemo-slide-panel {
   border-left: 1px solid var(--border);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Dark Mode Theme */
+[data-theme="dark"] {
+  --void: #121211;
+  --void-elevated: #1A1A18;
+  --void-sunken: #0D0D0C;
+  --surface: #23231F;
+  --surface-hover: #2C2C28;
+
+  --accent: #FAFAF8;
+  --accent-hover: #FFFFFF;
+  --accent-text: #121211;
+  --accent-glow: rgba(250, 250, 248, 0.12);
+  --accent-light: rgba(250, 250, 248, 0.06);
+
+  --text-primary: #FAFAF8;
+  --text-secondary: rgba(250, 250, 248, 0.75);
+  --text-tertiary: rgba(250, 250, 248, 0.55);
+  --text-muted: rgba(250, 250, 248, 0.40);
+
+  --border: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --border-focus: rgba(255, 255, 255, 0.30);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Theme transition - smooth switch */
+[data-theme="dark"] * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }

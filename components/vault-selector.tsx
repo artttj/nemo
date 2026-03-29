@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { ChevronDown, Plus } from 'lucide-react'
 import type { VaultRegistry } from '~/utils/types'
 
 interface VaultSelectorProps {
@@ -105,17 +106,10 @@ export function VaultSelector({
         <span className="text-[13px] font-medium text-[var(--text-primary)] max-w-[100px] truncate">
           {currentVault?.name ?? 'Vault'}
         </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+        <ChevronDown
+          size={14}
           className={`text-[var(--text-tertiary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        />
       </button>
 
       {isOpen && (
@@ -182,17 +176,7 @@ export function VaultSelector({
                 className="w-full px-3 py-2 flex items-center gap-2 hover:bg-[var(--surface)] transition-colors text-left"
               >
                 <div className="w-6 h-6 rounded border border-dashed border-[var(--border)] flex items-center justify-center flex-shrink-0">
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="text-[var(--text-muted)]"
-                  >
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
+                  <Plus size={12} className="text-[var(--text-muted)]" />
                 </div>
                 <span className="text-[13px] text-[var(--text-secondary)]">
                   Create new vault

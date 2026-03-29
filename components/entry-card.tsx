@@ -1,16 +1,14 @@
-
-
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, Globe, Lock } from 'lucide-react'
 import type { VaultEntry } from '~/utils/types'
 
 function getColorForEntry(title: string): { bg: string; text: string } {
   const colors = [
-    { bg: 'rgba(184, 115, 51, 0.12)', text: '#b87333' },
     { bg: 'rgba(100, 116, 139, 0.12)', text: '#64748b' },
-    { bg: 'rgba(201, 162, 39, 0.12)', text: '#c9a227' },
-    { bg: 'rgba(139, 92, 246, 0.12)', text: '#8b5cf6' },
-    { bg: 'rgba(34, 197, 94, 0.12)', text: '#22c55e' },
+    { bg: 'rgba(120, 113, 108, 0.12)', text: '#787168' },
+    { bg: 'rgba(162, 155, 140, 0.12)', text: '#a29b8c' },
+    { bg: 'rgba(87, 83, 78, 0.12)', text: '#57534e' },
+    { bg: 'rgba(68, 64, 60, 0.12)', text: '#44403c' },
   ]
   let hash = 0
   for (let i = 0; i < title.length; i++) {
@@ -64,196 +62,226 @@ export function EntryCard({
   }
 
   return (
-    <div 
-      className="relative animate-entry-reveal"
+    <div
+      className="relative"
       style={{ animationDelay: `${index * 0.05}s` }}
     >
-      {}
       <div
         onClick={() => setExpanded(!expanded)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="relative cursor-pointer transition-all duration-300"
+        className="nemo-card cursor-pointer transition-all duration-200"
         style={{
-          background: expanded ? 'var(--surface-card)' : 'transparent',
-          border: `1px solid ${isHovered || expanded ? 'var(--border-accent)' : 'var(--border-subtle)'}`,
-          boxShadow: isHovered && !expanded ? '0 4px 20px rgba(0,0,0,0.2)' : 'none'
+          background: expanded ? 'var(--surface)' : 'var(--void-elevated)',
+          borderColor: isHovered || expanded ? 'var(--border-hover)' : 'var(--border)',
+          boxShadow: isHovered && !expanded ? 'var(--shadow)' : 'var(--shadow-sm)',
         }}
       >
-        {}
-        <div className="flex items-center gap-4 px-5 py-4">
-          {}
-          <div 
-            className="flex-shrink-0 w-11 h-11 flex items-center justify-center font-display text-[18px] transition-transform duration-300"
-            style={{ 
+        {/* Header Row */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          {/* Icon */}
+          <div
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center font-semibold text-base transition-transform duration-200"
+            style={{
               background: color.bg,
               color: color.text,
-              borderRadius: '50%',
-              transform: isHovered ? 'scale(1.05)' : 'scale(1)'
+              borderRadius: 'var(--radius-lg)',
+              transform: isHovered ? 'scale(1.02)' : 'scale(1)',
             }}
           >
             {initial}
           </div>
 
-          {}
+          {/* Content */}
           <div className="flex-1 min-w-0">
-            <h3 
-              className="font-display text-[15px] font-medium truncate tracking-tight transition-colors"
-              style={{ color: isHovered ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+            <h3
+              className="text-[15px] font-semibold truncate tracking-tight"
+              style={{ color: 'var(--text-primary)' }}
             >
               {entry.title}
-            </h3>            
-            <p 
-              className="font-body text-[13px] truncate mt-0.5 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+            </h3>
+            <p
+              className="text-[13px] truncate mt-0.5"
+              style={{ color: 'var(--text-tertiary)' }}
             >
               {domain || entry.username || 'Credential'}
-            </p>          </div>
+            </p>
+          </div>
 
-          {}
+          {/* Chevron */}
           <div
-            className="flex-shrink-0 transition-transform duration-300"
+            className="flex-shrink-0 transition-transform duration-200"
             style={{
               transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              color: 'var(--text-muted)'
+              color: 'var(--text-muted)',
             }}
           >
-            <ChevronDown size={16} strokeWidth={1.5} />
+            <ChevronDown size={16} strokeWidth={2} />
           </div>
         </div>
 
-        {}
+        {/* Expanded Content */}
         {expanded && (
-          <div 
-            className="px-5 pb-5 animate-expand"
-            style={{ borderTop: '1px solid var(--border-subtle)' }}
+          <div
+            className="px-4 pb-4 pt-2 animate-fade-in"
+            style={{ borderTop: '1px solid var(--border)' }}
           >
-            <div className="pt-4 space-y-4">
-              {}
+            <div className="space-y-3">
+              {/* Domain */}
               {domain && (
                 <div className="flex items-center gap-2">
-                  <Globe size={12} strokeWidth={1.5} style={{ color: 'var(--text-faint)' }} />
-                  <p className="font-mono text-[11px] tracking-wide truncate" style={{ color: 'var(--text-faint)' }}>
+                  <Globe size={12} strokeWidth={2} style={{ color: 'var(--text-muted)' }} />
+                  <p className="font-mono text-[12px] tracking-wide truncate" style={{ color: 'var(--text-tertiary)' }}>
                     {domain}
-                  </p>                </div>
+                  </p>
+                </div>
               )}
 
-              {}
+              {/* Username */}
               {entry.username && (
-                <div 
-                  className="flex items-center justify-between p-3"
-                  style={{ background: 'var(--surface-void-light)' }}
+                <div
+                  className="flex items-center justify-between p-3 rounded-md"
+                  style={{ background: 'var(--void)', borderRadius: 'var(--radius-md)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
+                    <p className="text-[11px] uppercase tracking-wide mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>
                       Username
                     </p>
-                    <p className="font-body text-[14px] truncate" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-[14px] truncate" style={{ color: 'var(--text-primary)' }}>
                       {entry.username}
-                    </p>                  </div>
+                    </p>
+                  </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleCopy(entry.username!, 'username') }}
-                    className="flex-shrink-0 ml-4 px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
-                    style={{ color: copied === 'username' ? 'var(--success)' : 'var(--text-muted)' }}
+                    className="flex-shrink-0 ml-3 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-colors rounded"
+                    style={{
+                      color: copied === 'username' ? 'var(--success)' : 'var(--text-tertiary)',
+                      background: copied === 'username' ? 'var(--success-light)' : 'transparent',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
                   >
                     {copied === 'username' ? 'Copied' : 'Copy'}
-                  </button>                </div>
+                  </button>
+                </div>
               )}
 
-              {}
+              {/* Password */}
               {entry.password && (
-                <div 
-                  className="flex items-center justify-between p-3"
-                  style={{ background: 'var(--surface-void-light)' }}
+                <div
+                  className="flex items-center justify-between p-3 rounded-md"
+                  style={{ background: 'var(--void)', borderRadius: 'var(--radius-md)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
+                    <p className="text-[11px] uppercase tracking-wide mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>
                       Password
                     </p>
-                    <p 
+                    <p
                       className="font-mono text-[13px] tracking-wide"
                       style={{ color: 'var(--text-primary)' }}
                     >
                       {showPassword ? entry.password : '••••••••••••••'}
-                    </p>                  </div>
-                  <div className="flex-shrink-0 ml-4 flex items-center gap-2">
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 ml-3 flex items-center gap-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowPassword(!showPassword) }}
-                      className="px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCopy(entry.password!, 'password') }}
-                      className="px-3 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition-colors hover:text-[var(--text-primary)]"
-                      style={{ color: copied === 'password' ? 'var(--success)' : 'var(--text-muted)' }}
-                    >
-                      {copied === 'password' ? 'Copied' : 'Copy'}
-                    </button>                  </div>                </div>
-              )}
-
-              {}
-              {entry.notes && (
-                <div 
-                  className="p-3"
-                  style={{ background: 'var(--surface-void-light)' }}
-                >
-                  <p className="font-mono text-[9px] tracking-[0.15em] uppercase mb-1" style={{ color: 'var(--text-faint)' }}>
-                    Notes
-                  </p>
-                  <p className="font-body text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-secondary)' }}>
-                    {entry.notes}
-                  </p>                </div>
-              )}
-
-              {}
-              {entry.tags && entry.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {entry.tags.map((tag) => (
-                    <span 
-                      key={tag}
-                      className="font-mono text-[9px] tracking-[0.1em] uppercase px-2.5 py-1"
-                      style={{ 
-                        background: 'var(--bronze-glow)',
-                        color: 'var(--bronze)'
+                      className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-colors rounded"
+                      style={{
+                        color: 'var(--text-tertiary)',
+                        borderRadius: 'var(--radius-sm)',
                       }}
                     >
-                      {tag}
-                    </span>                  ))}
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCopy(entry.password!, 'password') }}
+                      className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-colors rounded"
+                      style={{
+                        color: copied === 'password' ? 'var(--success)' : 'var(--text-tertiary)',
+                        background: copied === 'password' ? 'var(--success-light)' : 'transparent',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      {copied === 'password' ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {}
-              <div className="flex gap-3 pt-2">
+              {/* Notes */}
+              {entry.notes && (
+                <div
+                  className="p-3 rounded-md"
+                  style={{ background: 'var(--void)', borderRadius: 'var(--radius-md)' }}
+                >
+                  <p className="text-[11px] uppercase tracking-wide mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>
+                    Notes
+                  </p>
+                  <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words" style={{ color: 'var(--text-secondary)' }}>
+                    {entry.notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Tags */}
+              {entry.tags && entry.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {entry.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="text-[11px] font-medium tracking-wide px-2.5 py-1"
+                      style={{
+                        background: 'var(--accent-light)',
+                        color: 'var(--text-secondary)',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); onEdit?.() }}
-                  className="flex-1 py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase transition-all"
-                  style={{ 
-                    background: 'var(--surface-elevated)',
+                  className="flex-1 py-2.5 text-[12px] font-medium uppercase tracking-wide transition-all"
+                  style={{
+                    background: 'var(--void-elevated)',
                     color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)'
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
                   }}
                 >
                   Edit
-                </button>                <button
+                </button>
+                <button
                   onClick={(e) => { e.stopPropagation(); onDelete?.() }}
-                  className="flex-1 py-2.5 font-mono text-[10px] tracking-[0.1em] uppercase transition-all"
-                  style={{ 
+                  className="flex-1 py-2.5 text-[12px] font-medium uppercase tracking-wide transition-all"
+                  style={{
                     background: 'transparent',
                     color: 'var(--danger)',
-                    border: '1px solid var(--danger-dim)'
+                    border: '1px solid var(--danger-light)',
+                    borderRadius: 'var(--radius-md)',
                   }}
                 >
                   Delete
-                </button>              </div>            </div>          </div>        )}
-      </div>    </div>  )
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function EntryList({
   entries,
   onEdit,
   onDelete,
-  searchQuery
+  searchQuery,
 }: {
   entries: VaultEntry[]
   onEdit?: (entry: VaultEntry) => void
@@ -262,23 +290,27 @@ export function EntryList({
 }) {
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade">
+      <div className="flex flex-col items-center justify-center py-16 px-6">
         <div
-          className="w-16 h-16 flex items-center justify-center mb-6"
+          className="w-14 h-14 flex items-center justify-center mb-4"
           style={{
-            background: 'var(--surface-void-light)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '50%'
+            background: 'var(--void-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-xl)',
           }}
         >
-          <Lock size={24} strokeWidth={1.5} style={{ color: 'var(--text-faint)' }} />        </div>
-        <p className="font-display text-[18px] font-medium" style={{ color: 'var(--text-primary)' }}>
+          <Lock size={22} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
+        </div>
+        <p className="text-[17px] font-semibold" style={{ color: 'var(--text-primary)' }}>
           {searchQuery ? 'No results found' : 'Your vault is empty'}
-        </p>        <p className="font-body text-[14px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
-          {searchQuery 
-            ? 'Try adjusting your search terms' 
+        </p>
+        <p className="text-[13px] mt-1 text-center" style={{ color: 'var(--text-tertiary)' }}>
+          {searchQuery
+            ? 'Try adjusting your search terms'
             : 'Add your first password entry to begin'}
-        </p>      </div>    )
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -290,6 +322,8 @@ export function EntryList({
           index={index}
           onEdit={onEdit ? () => onEdit(entry) : undefined}
           onDelete={onDelete ? () => onDelete(entry.id) : undefined}
-        />      ))}
-    </div>  )
+        />
+      ))}
+    </div>
+  )
 }

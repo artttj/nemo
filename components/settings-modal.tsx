@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { RefreshCw, ChevronDown, Loader2, Lock, Check, Database, Cloud, Trash2, AlertCircle } from 'lucide-react'
 import type { VaultSettings, VaultRegistry } from '~/utils/types'
 
 interface CloudflareConfig {
@@ -724,17 +725,11 @@ export function SettingsModal({
                   className="w-full flex items-center justify-between py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   <span className="text-[13px] font-medium">How your data is protected</span>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--text-muted)"
-                    strokeWidth="2"
+                  <ChevronDown
+                    size={14}
                     className={`transition-transform ${showSecurityInfo ? 'rotate-180' : ''}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                    style={{ color: 'var(--text-muted)' }}
+                  />
                 </button>
                 {showSecurityInfo && (
                   <div className="mt-2 rounded-lg border border-[var(--border)] overflow-hidden">
@@ -1013,16 +1008,12 @@ export function SettingsModal({
                   >
                     {syncing ? (
                       <>
-                        <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" strokeDasharray="60" strokeDashoffset="20" />
-                        </svg>
+                        <Loader2 className="animate-spin" size={14} />
                         Syncing...
                       </>
                     ) : (
                       <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21.5 2v6h-6M21.34 5.5A10 10 0 1 1 11.26 2.15" />
-                        </svg>
+                        <RefreshCw size={14} />
                         Sync now
                       </>
                     )}
@@ -1042,12 +1033,10 @@ export function SettingsModal({
                       className="w-full flex items-center justify-between py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       <span>Sync another device</span>
-                      <svg
-                        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      <ChevronDown
+                        size={14}
                         className={`transition-transform ${showSyncToken ? 'rotate-180' : ''}`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      />
                     </button>
                     {showSyncToken && (
                       <div className="mt-2 space-y-2">
@@ -1111,12 +1100,10 @@ export function SettingsModal({
                       className="w-full flex items-center justify-between py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       <span>Already have a token?</span>
-                      <svg
-                        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                      <ChevronDown
+                        size={14}
                         className={`transition-transform ${showImportToken ? 'rotate-180' : ''}`}
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
+                      />
                     </button>
                     {showImportToken && (
                       <div className="mt-2 flex gap-2">

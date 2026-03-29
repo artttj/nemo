@@ -11,6 +11,7 @@ import { SettingsModal } from '~/components/settings-modal'
 import { EntryDetailModal } from '~/components/entry-detail-modal'
 import { VaultSelector } from '~/components/vault-selector'
 import { TOTPDisplay } from '~/components/totp-display'
+import { ThemeProvider, ThemeToggle } from '~/components/theme-provider'
 import '~/style.css'
 
 type FilterType = 'all' | 'recent'
@@ -42,7 +43,7 @@ type VaultExistsState = {
   hasCredential: boolean
 }
 
-export default function App() {
+function AppContent() {
   const [state, setState] = useState<VaultState>({
     isUnlocked: false,
     vault: null,
@@ -612,6 +613,7 @@ export default function App() {
             />
           </div>
           <div className="flex items-center gap-0.5">
+            <ThemeToggle />
             <button
               onClick={handleLock}
               className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] transition-colors rounded-lg"
@@ -804,5 +806,13 @@ export default function App() {
         onDeleteVault={handleDeleteVault}
       />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   )
 }

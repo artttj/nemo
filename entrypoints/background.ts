@@ -84,6 +84,11 @@ export default defineBackground({
 })
 
 async function handleMessage(message: Message, sender?: chrome.runtime.MessageSender): Promise<MessageResponse> {
+  // Validate message sender - only accept messages from our own extension
+  if (sender && sender.id !== chrome.runtime.id) {
+    return { success: false, error: 'Invalid sender' }
+  }
+
   switch (message.type) {
     case 'GET_VAULT_STATE':
       return { success: true, data: await getVaultState() }
@@ -148,7 +153,7 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
       return { success: false, error: 'Vault not found' }
 
     case 'GENERATE_RECOVERY_PHRASE':
-      return { success: true, data: generateRecoveryPhrase() }
+      return { success: true, data: await generateRecoveryPhrase() }
 
     case 'CREATE_VAULT_WITH_OPTIONS': {
       const setupPayload = message.payload as { recoveryPhrase: string; enableTouchId: boolean }

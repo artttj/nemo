@@ -91,7 +91,13 @@ export class CustomBackendAdapter implements VaultStorage, Syncable {
 
   async save(vault: EncryptedVault): Promise<void> {
     const metadata = await this.localStorage.loadMetadata();
-    if (!metadata) throw new Error("No local metadata available");
+
+    // Build metadata from vault data if local metadata not available
+    const now = Date.now();
+    const deviceId = metadata?.deviceId || (metadata as any)?.vaultId || "nemo-device";
+    const salt = vault.salt || (metadata as any)?.salt || "";
+    const kdf = vault.kdf || "pbkdf2";
+    const version = typeof vault.version === "number" ? vault.version : 1;
 
     const response = await fetch(`${this.config.baseUrl}/api/vault`, {
       method: "PUT",
@@ -99,24 +105,24 @@ export class CustomBackendAdapter implements VaultStorage, Syncable {
       body: JSON.stringify({
         vault: {
           ciphertext: vault.ciphertext,
-          salt: vault.salt || (metadata as any).salt || "",
+          salt,
           iv: vault.iv,
-          kdf: vault.kdf || "pbkdf2",
-          version: typeof vault.version === "number" ? vault.version : 1,
+          kdf,
+          version,
         },
         metadata: {
-          version: typeof metadata.version === "string" ? 1 : (metadata.version as number),
-          createdAt: metadata.createdAt,
-          updatedAt: Date.now(),
-          deviceId: (metadata as any).deviceId || (metadata as any).vaultId || "default",
-          salt: (metadata as any).salt || "",
-          kdf: (metadata as any).kdf || "pbkdf2",
+          version: metadata?.version ?? version,
+          createdAt: metadata?.createdAt ?? now,
+          updatedAt: now,
+          deviceId,
+          salt,
+          kdf,
         },
       }),
     });
 
     if (!response.ok) throw new Error(`Failed to save vault: ${response.statusText}`);
-    this.config.lastSyncAt = Date.now();
+    this.config.lastSyncAt = now;
   }
 
   async loadMetadata(): Promise<VaultMetadata | null> {

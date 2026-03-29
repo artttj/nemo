@@ -154,100 +154,135 @@ export default defineContentScript({
         `
       } else {
         overlayElement = document.createElement('div')
-        overlayElement.innerHTML = `
-          <div style="
-            position: fixed;
-            z-index: 2147483647;
-            background: ${colors.darkBg};
-            border: 1px solid ${colors.border};
-            border-radius: 12px;
-            min-width: 320px;
-            max-height: 400px;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          ">
-            <div style="
-              padding: 16px 20px;
-              background: ${colors.darkerBg};
-              border-bottom: 1px solid ${colors.border};
-              font-size: 14px;
-              font-weight: 600;
-              color: ${colors.textPrimary};
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-            ">
-              <span>Nemo Password Manager</span>
-              <span style="font-size: 12px; color: ${colors.textSecondary}; font-weight: 400;">${entries.length} entries</span>
-            </div>
-            ${entries.map(entry => `
-              <div class="nemo-entry-item" style="
-                padding: 16px 20px;
-                cursor: pointer;
-                border-bottom: 1px solid ${colors.borderSubtle};
-                transition: background 0.15s;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-              ">
-                <div style="
-                  width: 40px;
-                  height: 40px;
-                  background: ${entry.favorite ? colors.gold : colors.hoverBg};
-                  border-radius: 8px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  color: ${entry.favorite ? colors.textPrimary : colors.textSecondary};
-                  font-size: 16px;
-                  font-weight: 600;
-                  flex-shrink: 0;
-                ">
-                  ${escapeHtml(entry.title.charAt(0).toUpperCase())}
-                </div>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-size: 15px; font-weight: 500; color: ${colors.textPrimary}; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${escapeHtml(entry.title)}
-                  </div>
-                  <div style="font-size: 13px; color: ${colors.textSecondary}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${escapeHtml(entry.username || 'No username')}
-                  </div>
-                  ${entry.url ? `<div style="font-size: 11px; color: ${colors.textMuted}; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(new URL(entry.url).hostname)}</div>` : ''}
-                </div>
-                <div style="
-                  width: 28px;
-                  height: 28px;
-                  background: ${colors.hoverBg};
-                  border-radius: 6px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  color: ${colors.textSecondary};
-                  flex-shrink: 0;
-                ">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </div>
-              </div>
-            `).join('')}
-          </div>
+        // Build DOM safely without innerHTML to prevent XSS
+        const container = document.createElement('div')
+        container.style.cssText = `
+          position: fixed;
+          z-index: 2147483647;
+          background: ${colors.darkBg};
+          border: 1px solid ${colors.border};
+          border-radius: 12px;
+          min-width: 320px;
+          max-height: 400px;
+          overflow-y: auto;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         `
 
-        const items = overlayElement.querySelectorAll('.nemo-entry-item')
-        items.forEach((item, index) => {
-          item.addEventListener('mouseenter', () => {
-            (item as HTMLElement).style.background = colors.hoverBg
+        const header = document.createElement('div')
+        header.style.cssText = `
+          padding: 16px 20px;
+          background: ${colors.darkerBg};
+          border-bottom: 1px solid ${colors.border};
+          font-size: 14px;
+          font-weight: 600;
+          color: ${colors.textPrimary};
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        `
+        const titleSpan = document.createElement('span')
+        titleSpan.textContent = 'Nemo Password Manager'
+        const countSpan = document.createElement('span')
+        countSpan.style.cssText = 'font-size: 12px; color: #737373; font-weight: 400;'
+        countSpan.textContent = `${entries.length} entries`
+        header.appendChild(titleSpan)
+        header.appendChild(countSpan)
+        container.appendChild(header)
+
+        entries.forEach((entry) => {
+          const entryDiv = document.createElement('div')
+          entryDiv.className = 'nemo-entry-item'
+          entryDiv.style.cssText = `
+            padding: 16px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          `
+
+          const iconDiv = document.createElement('div')
+          iconDiv.style.cssText = `
+            width: 40px;
+            height: 40px;
+            background: ${entry.favorite ? colors.gold : colors.hoverBg};
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: ${entry.favorite ? colors.textPrimary : colors.textSecondary};
+            font-size: 16px;
+            font-weight: 600;
+            flex-shrink: 0;
+          `
+          iconDiv.textContent = entry.title.charAt(0).toUpperCase()
+          entryDiv.appendChild(iconDiv)
+
+          const contentDiv = document.createElement('div')
+          contentDiv.style.cssText = 'flex: 1; min-width: 0;'
+
+          const titleDiv = document.createElement('div')
+          titleDiv.style.cssText = 'font-size: 15px; font-weight: 500; color: #FFFFFF; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+          titleDiv.textContent = entry.title
+          contentDiv.appendChild(titleDiv)
+
+          const userDiv = document.createElement('div')
+          userDiv.style.cssText = 'font-size: 13px; color: #737373; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+          userDiv.textContent = entry.username || 'No username'
+          contentDiv.appendChild(userDiv)
+
+          if (entry.url) {
+            let hostname = ''
+            try {
+              hostname = new URL(entry.url).hostname
+            } catch {
+              hostname = entry.url
+            }
+            const urlDiv = document.createElement('div')
+            urlDiv.style.cssText = 'font-size: 11px; color: #525252; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'
+            urlDiv.textContent = hostname
+            contentDiv.appendChild(urlDiv)
+          }
+
+          entryDiv.appendChild(contentDiv)
+
+          const arrowDiv = document.createElement('div')
+          arrowDiv.style.cssText = `
+            width: 28px;
+            height: 28px;
+            background: ${colors.hoverBg};
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: ${colors.textSecondary};
+            flex-shrink: 0;
+          `
+          arrowDiv.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          `
+          entryDiv.appendChild(arrowDiv)
+
+          // Attach event listeners directly for security and reliability
+          entryDiv.addEventListener('mouseenter', () => {
+            entryDiv.style.background = colors.hoverBg
           })
-          item.addEventListener('mouseleave', () => {
-            (item as HTMLElement).style.background = 'transparent'
+          entryDiv.addEventListener('mouseleave', () => {
+            entryDiv.style.background = 'transparent'
           })
-          item.addEventListener('click', () => {
-            onSelect(entries[index])
+          entryDiv.addEventListener('click', () => {
+            onSelect(entry)
             hideOverlay()
           })
+
+          container.appendChild(entryDiv)
         })
+
+        overlayElement.appendChild(container)
       }
 
       document.body.appendChild(overlayElement)
@@ -926,6 +961,11 @@ export default defineContentScript({
     }
 
     document.addEventListener('submit', async (e) => {
+      // Only extract credentials on secure origins to prevent credential leakage
+      if (!window.location.protocol.startsWith('https')) {
+        return
+      }
+
       const form = e.target as HTMLFormElement
       if (!isSignupForm(form)) return
 

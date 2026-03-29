@@ -232,9 +232,10 @@ function wordsToEntropy(phrase: string): Uint8Array {
     }
   }
 
-  
-  const entropy = new Uint8Array(17)
-  for (let i = 0; i < 132; i++) {
+  // BIP39: 12 words = 128 bits entropy + 4 bits checksum
+  // Extract only the 128 bits of entropy
+  const entropy = new Uint8Array(16)
+  for (let i = 0; i < 128; i++) {
     if (bits[i]) {
       entropy[Math.floor(i / 8)] |= 1 << (7 - (i % 8))
     }
@@ -243,17 +244,34 @@ function wordsToEntropy(phrase: string): Uint8Array {
   return entropy
 }
 
-export function generateRecoveryPhrase(): string {
-  const entropy = new Uint8Array(17)
+/**
+ * Generate a BIP39-compliant recovery phrase
+ * Uses 128 bits of entropy with 4-bit checksum (12 words)
+ * Follows standard BIP39 implementation
+ */
+export async function generateRecoveryPhrase(): Promise<string> {
+  // BIP39: 12 words requires 128 bits of entropy + 4 bits checksum
+  const entropy = new Uint8Array(16)
   crypto.getRandomValues(entropy)
 
+  // Calculate checksum: first 4 bits of SHA256(entropy)
+  const hash = await crypto.subtle.digest('SHA-256', entropy)
+  const hashArray = new Uint8Array(hash)
+  const checksumBits = hashArray[0] >> 4
+
+  // Combine entropy and checksum: 128 bits + 4 bits = 132 bits
   const bits: number[] = []
   for (const byte of entropy) {
     for (let i = 7; i >= 0; i--) {
       bits.push((byte >> i) & 1)
     }
   }
+  // Add checksum bits
+  for (let i = 3; i >= 0; i--) {
+    bits.push((checksumBits >> i) & 1)
+  }
 
+  // Extract 12 words of 11 bits each
   const words: string[] = []
   for (let i = 0; i < 12; i++) {
     let index = 0
@@ -301,7 +319,7 @@ export async function createRecoveryBackup(
   vaultId: string,
   existingPhrase?: string
 ): Promise<{ phrase: string; encryptedData: RecoveryData }> {
-  const phrase = existingPhrase || generateRecoveryPhrase()
+  const phrase = existingPhrase || await generateRecoveryPhrase()
   const recoveryKey = await deriveKeyFromPhrase(phrase)
   const { wrappedKey, iv } = await wrapVaultKey(vaultKey, recoveryKey)
   const salt = bufferToBase64(generateRandomBytes(16))

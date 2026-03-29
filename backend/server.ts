@@ -53,14 +53,33 @@ async function initDb() {
 }
 
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || "*" }));
-app.use(express.json({ limit: "1mb" }));
+
+// CORS: Require explicit origin configuration, reject if not set
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+if (!allowedOrigin) {
+  console.error('ERROR: ALLOWED_ORIGIN environment variable must be set');
+  process.exit(1);
+}
+app.use(cors({ origin: allowedOrigin }));
+
+// Limit request size to prevent DoS
+app.use(express.json({ limit: "10mb" }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 100, 
 });
 app.use(limiter);
+
+// Constant-time comparison to prevent timing attacks
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
 
 async function authenticateToken(
   req: express.Request,
@@ -76,16 +95,22 @@ async function authenticateToken(
 
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  const user = await db.get(
-    "SELECT id FROM users WHERE auth_token_hash = ?",
-    tokenHash
-  );
+  // Get all users and compare in constant-time to prevent timing attacks
+  const users = await db.all("SELECT id, auth_token_hash FROM users");
 
-  if (!user) {
+  let validUser: { id: string } | null = null;
+  for (const user of users) {
+    if (timingSafeCompare(user.auth_token_hash, tokenHash)) {
+      validUser = user;
+      break;
+    }
+  }
+
+  if (!validUser) {
     return res.status(401).json({ error: "Invalid token" });
   }
 
-  (req as any).userId = user.id;
+  (req as any).userId = validUser.id;
   next();
 }
 
@@ -150,6 +175,11 @@ app.put("/api/vault", authenticateToken, async (req, res) => {
   try {
     const userId = (req as any).userId;
     const { vault, metadata } = req.body;
+
+    // Validate vault size (max 5MB of base64-encoded ciphertext)
+    if (vault?.ciphertext && Buffer.byteLength(vault.ciphertext, 'base64') > 5 * 1024 * 1024) {
+      return res.status(413).json({ error: "Vault too large" });
+    }
 
     await db.run(
       `
