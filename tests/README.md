@@ -144,3 +144,43 @@ Checks for extension UI elements:
 Add `await helper.delay(30000)` to keep browser open for manual inspection.
 
 View screenshots in `tests/screenshots/` to debug visual issues.
+
+## Generating README Screenshots
+
+Two scripts for creating clean screenshots of the extension UI:
+
+### Locked State
+
+```bash
+cd tests && node screenshot-readme.mjs
+```
+
+Creates `readme-locked.png` showing the extension popup in locked/setup state.
+
+### Unlocked State
+
+Prerequisites: Create a vault manually first.
+
+```bash
+cd tests && node screenshot-unlocked.mjs
+```
+
+Creates:
+- `readme-unlocked.png` - Main popup with entries
+- `readme-entry-detail.png` - Entry detail view
+- `readme-settings.png` - Settings modal
+- `readme-autofill.png` - Autofill on Google login
+
+### Adding to README
+
+```markdown
+## Screenshots
+
+| Locked | Unlocked |
+|--------|----------|
+| ![Locked](tests/screenshots/readme-locked.png) | ![Unlocked](tests/screenshots/readme-unlocked.png) |
+
+| Entry Detail | Autofill |
+|--------------|----------|
+| ![Entry](tests/screenshots/readme-entry-detail.png) | ![Autofill](tests/screenshots/readme-autofill.png) |
+```
