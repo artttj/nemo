@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useRef } from 'react'
+import { AlertTriangle, ArrowLeft, Check, Copy, ExternalLink, Eye, EyeOff, FileKey, History, MoreVertical, Trash2, User, X } from 'lucide-react'
 import type { VaultEntry, EntryHistory } from '~/utils/types'
 import { getFaviconUrl } from '~/utils/vault'
 import { getDomain } from '~/utils/url'
@@ -92,9 +93,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowDeleteConfirm(false)} />
           <div className="relative bg-[var(--void)] rounded-xl p-5 max-w-sm w-full border border-[var(--border)] shadow-xl">
             <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-[var(--danger-bg)] flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
+              <Trash2 size={20} style={{ color: 'var(--danger)' }} />
             </div>
             <h3 className="text-base font-semibold text-[var(--text-primary)] text-center mb-1">Delete this password?</h3>
             <p className="text-[var(--text-secondary)] text-sm text-center mb-4">
@@ -123,11 +122,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowRestoreConfirm(null)} />
           <div className="relative bg-[var(--void)] rounded-xl p-5 max-w-sm w-full border border-[var(--border)] shadow-xl">
             <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-[var(--accent-bg)] flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10" />
-                <polyline points="23 20 23 14 17 14" />
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-              </svg>
+              <History size={20} style={{ color: 'var(--accent)' }} />
             </div>
             <h3 className="text-base font-semibold text-[var(--text-primary)] text-center mb-1">Restore this version?</h3>
             <p className="text-[var(--text-secondary)] text-sm text-center mb-4">
@@ -161,9 +156,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
             onClick={onClose}
             className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <ArrowLeft size={16} />
             Back
           </button>
 
@@ -195,11 +188,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="1" />
-                <circle cx="12" cy="5" r="1" />
-                <circle cx="12" cy="19" r="1" />
-              </svg>
+              <MoreVertical size={18} />
             </button>
             
             {showMenu && (
@@ -210,19 +199,14 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                     onClick={() => { setShowMenu(false); onEdit(); }}
                     className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface)] flex items-center gap-2"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
+                    <FileKey size={14} />
                     Edit
                   </button>
                   <button
                     onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
                     className="w-full px-3 py-2 text-left text-sm text-[var(--danger)] hover:bg-[var(--danger-bg)] flex items-center gap-2"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
+                    <Trash2 size={14} />
                     Delete
                   </button>
                 </div>
@@ -275,14 +259,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                     title="Copy username"
                   >
                     {copied === 'username' ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
+                      <Check size={16} style={{ color: 'var(--success)' }} />
                     ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
+                      <Copy size={16} />
                     )}
                   </button>
                 </div>
@@ -304,19 +283,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                       className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors"
                       title={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        {showPassword ? (
-                          <>
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                            <line x1="1" y1="1" x2="23" y2="23" />
-                          </>
-                        ) : (
-                          <>
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </>
-                        )}
-                      </svg>
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                     <button
                       onClick={() => handleCopy(entry.password!, 'password')}
@@ -324,14 +291,9 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                       title="Copy password"
                     >
                       {copied === 'password' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Check size={16} style={{ color: 'var(--success)' }} />
                       ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" />
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
+                        <Copy size={16} />
                       )}
                     </button>
                   </div>
@@ -360,9 +322,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
                     className="ml-2 p-2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface)] rounded-md transition-colors flex-shrink-0"
                     title="Open website"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                    </svg>
+                    <ExternalLink size={16} />
                   </a>
                 </div>
               </div>
@@ -419,11 +379,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
           <div className="px-4 py-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-[var(--surface)] flex items-center justify-center flex-shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                  <polyline points="1 4 1 10 7 10" />
-                  <polyline points="23 20 23 14 17 14" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                </svg>
+                <History size={20} style={{ color: 'var(--accent)' }} />
               </div>
               <div>
                 <h3 className="text-sm font-medium text-[var(--text-primary)]">Version History</h3>
@@ -486,10 +442,7 @@ export function EntryDetailModal({ entry, isOpen, onClose, onEdit, onDelete, onR
             ) : (
               <div className="text-center py-8">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--surface)] flex items-center justify-center">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
+                  <History size={24} style={{ color: 'var(--text-muted)' }} />
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] mb-1">No history yet</p>
                 <p className="text-xs text-[var(--text-muted)]">

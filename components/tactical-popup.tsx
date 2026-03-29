@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useRef } from "react"
+import { AlertTriangle, Copy, Eye, EyeOff, Key, Lock, Plus, Search, Shield, User, X } from "lucide-react"
 
 interface VaultEntry {
   id: string
@@ -87,9 +88,7 @@ export default function TacticalPopup({
               <div className="scan-line" />
               <div className="text-center">
                 <div className="mb-6">
-                  <svg className="w-16 h-16 mx-auto text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+                  <Lock className="w-16 h-16 mx-auto text-warning" strokeWidth={1.5} />
                 </div>
                 <h2 className="hud-title text-sm text-secondary mb-6 cursor-blink">VAULT LOCKED</h2>
                 <p className="text-xs text-muted mb-6">AUTHENTICATE TO ACCESS</p>
@@ -137,9 +136,7 @@ export default function TacticalPopup({
               className="text-muted hover:text-destructive transition-colors"
               title="Lock Vault"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+              <Lock className="w-4 h-4" strokeWidth={1.5} />
             </button>
           </div>
         </div>
@@ -157,9 +154,7 @@ export default function TacticalPopup({
               placeholder="SEARCH_VAULT_"
               className="tactical-input chamfered-sm pr-10"
             />
-            <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" strokeWidth={1.5} />
           </div>
         </div>
 
@@ -200,9 +195,7 @@ export default function TacticalPopup({
                           className="p-1.5 text-muted hover:text-success transition-colors"
                           title="Copy Password"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
+                          <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
                         </button>
                       )}
                       {entry.username && (
@@ -214,9 +207,7 @@ export default function TacticalPopup({
                           className="p-1.5 text-muted hover:text-secondary transition-colors"
                           title="Copy Username"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
+                          <User className="w-3.5 h-3.5" strokeWidth={1.5} />
                         </button>
                       )}
                     </div>
@@ -232,9 +223,8 @@ export default function TacticalPopup({
             onClick={onAddEntry}
             className="tactical-button chamfered w-full flex items-center justify-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-            </svg>
+            <Plus className="w-4 h-4" strokeWidth={1.5} />
+            ADD ENTRY
             ADD ENTRY
           </button>
         </div>

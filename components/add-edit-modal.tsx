@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect } from 'react'
+import { AlertTriangle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import type { VaultEntry } from '~/utils/types'
 import { TOTPSetup } from './totp-setup'
 import { TOTPDisplay } from './totp-display'
@@ -95,11 +96,7 @@ export function AddEditModal({
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowGenerateConfirm(false)} />
           <div className="relative bg-[var(--void)] rounded-xl p-5 max-w-sm w-full border border-[var(--border)]">
             <div className="w-10 h-10 mx-auto mb-3 rounded-lg bg-[var(--danger-bg)] flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              <AlertTriangle size={20} style={{ color: 'var(--danger)' }} />
             </div>
             <h3 className="text-base font-semibold text-[var(--text-primary)] text-center mb-1">Replace password?</h3>
             <p className="text-[var(--text-secondary)] text-sm text-center mb-4">
@@ -132,9 +129,7 @@ export function AddEditModal({
               onClick={onClose}
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 rounded-md hover:bg-[var(--surface)]"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft size={16} />
             </button>
             <span className="text-sm font-semibold text-[var(--text-primary)]">{entry ? 'Edit' : 'Add password'}</span>
           </div>
@@ -189,19 +184,7 @@ export function AddEditModal({
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded transition-colors"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    {showPassword ? (
-                      <>
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </>
-                    ) : (
-                      <>
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </>
-                    )}
-                  </svg>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>

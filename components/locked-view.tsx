@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react'
+import { MoveLeft, User } from 'lucide-react'
 import { useBiometricType } from '~/utils/biometric'
 
 interface LockedViewProps {
@@ -145,9 +146,7 @@ export function LockedView({
             onClick={() => { setShowRecovery(false); setRecoveryPhrase(''); setError(null); }}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium flex items-center gap-2 px-2 py-1 -ml-2 rounded-lg hover:bg-[var(--surface)]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <MoveLeft size={16} />
             Back
           </button>
           <div className="font-brand text-[var(--accent)] text-lg tracking-wider">NEMO</div>
@@ -221,9 +220,7 @@ export function LockedView({
             onClick={() => { setShowPin(false); setPin(''); setError(null); }}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors text-sm font-medium flex items-center gap-2 px-2 py-1 -ml-2 rounded-lg hover:bg-[var(--surface)]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
+            <MoveLeft size={16} />
             Back
           </button>
           <div className="font-brand text-[var(--accent)] text-lg tracking-wider">NEMO</div>
@@ -232,10 +229,7 @@ export function LockedView({
         <div className="flex-1 px-5 py-12 flex flex-col">
           <div className="mb-10 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--surface)] flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+              <User size={28} style={{ color: 'var(--accent)' }} />
             </div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
               Enter PIN

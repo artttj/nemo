@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useRef } from 'react'
+import { ChevronDown, Globe, Lock } from 'lucide-react'
 import type { VaultEntry } from '~/utils/types'
 
 function getColorForEntry(title: string): { bg: string; text: string } {
@@ -112,14 +113,12 @@ export function EntryCard({
           {}
           <div
             className="flex-shrink-0 transition-transform duration-300"
-            style={{ 
+            style={{
               transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
               color: 'var(--text-muted)'
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+            <ChevronDown size={16} strokeWidth={1.5} />
           </div>
         </div>
 
@@ -133,10 +132,7 @@ export function EntryCard({
               {}
               {domain && (
                 <div className="flex items-center gap-2">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
+                  <Globe size={12} strokeWidth={1.5} style={{ color: 'var(--text-faint)' }} />
                   <p className="font-mono text-[11px] tracking-wide truncate" style={{ color: 'var(--text-faint)' }}>
                     {domain}
                   </p>                </div>
@@ -267,18 +263,15 @@ export function EntryList({
   if (entries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade">
-        <div 
+        <div
           className="w-16 h-16 flex items-center justify-center mb-6"
-          style={{ 
+          style={{
             background: 'var(--surface-void-light)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '50%'
           }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="1.5">
-            <rect x="5" y="11" width="14" height="10" rx="2" />
-            <path d="M7 11V7C7 4.24 9.24 2 12 2C14.76 2 17 4.24 17 7V11" />
-          </svg>        </div>
+          <Lock size={24} strokeWidth={1.5} style={{ color: 'var(--text-faint)' }} />        </div>
         <p className="font-display text-[18px] font-medium" style={{ color: 'var(--text-primary)' }}>
           {searchQuery ? 'No results found' : 'Your vault is empty'}
         </p>        <p className="font-body text-[14px] mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
