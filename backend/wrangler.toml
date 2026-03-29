@@ -10,8 +10,8 @@ compatibility_date = "2024-01-01"
 
 [[d1_databases]]
 binding = "NEMO_SYNC"
-database_name = "nemo-sync-db"
-database_id = "your-database-id-here"  # Get from: wrangler d1 create nemo-sync-db
+database_name = "nemo_pass_manager_db"
+database_id = "52147a7c-8711-466c-9328-a3caac206d13"
 
 # Environment variables (optional)
 [vars]

@@ -39,32 +39,17 @@ export default {
 
     try {
       
-      await env.NEMO_SYNC.exec(`
-        CREATE TABLE IF NOT EXISTS vaults (
-          user_id TEXT PRIMARY KEY,
-          token_hash TEXT NOT NULL,
-          ciphertext TEXT,
-          salt TEXT,
-          iv TEXT,
-          kdf TEXT,
-          version INTEGER,
-          updated_at INTEGER,
-          created_at INTEGER NOT NULL
-        );
+      await env.NEMO_SYNC.prepare(
+        `CREATE TABLE IF NOT EXISTS vaults (user_id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, ciphertext TEXT, salt TEXT, iv TEXT, kdf TEXT, version INTEGER, updated_at INTEGER, created_at INTEGER NOT NULL)`
+      ).run();
 
-        CREATE TABLE IF NOT EXISTS vault_metadata (
-          user_id TEXT PRIMARY KEY,
-          version INTEGER,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER,
-          device_id TEXT,
-          salt TEXT,
-          kdf TEXT,
-          FOREIGN KEY (user_id) REFERENCES vaults(user_id)
-        );
+      await env.NEMO_SYNC.prepare(
+        `CREATE TABLE IF NOT EXISTS vault_metadata (user_id TEXT PRIMARY KEY, version INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER, device_id TEXT, salt TEXT, kdf TEXT, FOREIGN KEY (user_id) REFERENCES vaults(user_id))`
+      ).run();
 
-        CREATE INDEX IF NOT EXISTS idx_token_hash ON vaults(token_hash);
-      `);
+      await env.NEMO_SYNC.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_token_hash ON vaults(token_hash)`
+      ).run();
 
       
       if (url.pathname === "/health") {

@@ -251,12 +251,12 @@ export async function initializeCustomSync(
   }
 ): Promise<{ success: boolean; error?: string; authToken?: string }> {
   try {
-    
+    const baseUrl = config.baseUrl || DEFAULT_SYNC_SERVER;
     const authToken = config.authToken || generateAnonymousToken();
     const isAnonymous = config.isAnonymous ?? !config.authToken;
 
     const fullConfig: CustomBackendConfig = {
-      baseUrl: config.baseUrl,
+      baseUrl,
       authToken,
       enabled: false, 
       syncOnChange: config.syncOnChange,

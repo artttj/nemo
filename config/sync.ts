@@ -1,4 +1,4 @@
-export const DEFAULT_SYNC_SERVER = "https://nemo-sync.yourdomain.workers.dev";
+export const DEFAULT_SYNC_SERVER = "https://nemo-sync.artyom-yagovdik.workers.dev";
 
 export const SYNC_CONFIG = {
   DEFAULT_SERVER: DEFAULT_SYNC_SERVER,
