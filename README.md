@@ -214,11 +214,9 @@ The overlay uses plain DOM (no `innerHTML`) to prevent XSS from page content.
 
 ### Sync
 
-Sync is opt-in. Two backends work:
+Sync is opt-in. This project uses a Cloudflare D1 backend for convenience. You can enable it by providing your own Cloudflare API token and database ID – you're responsible for your own D1 setup, costs, and data. This project is not responsible for any data loss, breaches, or Cloudflare charges incurred.
 
-**Cloudflare D1** – uses Cloudflare's API directly. You provide an API token and database ID.
-
-**Custom backend** – any HTTP server implementing four endpoints: `POST /api/register`, `GET /api/vault`, `PUT /api/vault`, `HEAD /api/vault`. A reference server is in `backend/server.ts` (Express + SQLite).
+Alternatively, run your own backend: any HTTP server implementing four endpoints: `POST /api/register`, `GET /api/vault`, `PUT /api/vault`, `HEAD /api/vault`. A reference server is in `backend/server.ts` (Express + SQLite).
 
 Both use last-write-wins conflict resolution. The sync manager runs every 5 minutes while unlocked, with automatic retry (3 attempts, exponential backoff: 5s, 15s, 60s).
 
