@@ -1,6 +1,6 @@
 # Privacy Policy for Nemo Password Manager
 
-**Last Updated: March 2025**
+**Last Updated: March 2026**
 
 ## Overview
 
@@ -24,13 +24,13 @@ Nemo stores all data locally in your browser using the Origin Private File Syste
 - **Passkeys**: Stored in your browser's WebAuthn credential manager
 - **No Server**: By default, Nemo does not communicate with any external server
 
-### Cloud Sync (Future Feature)
+### Cloud Sync (Optional Feature)
 
 When cloud sync via Cloudflare D1 is enabled:
 
 - **Encrypted blobs only**: The server receives and stores encrypted data. We cannot decrypt it.
 - **No plaintext**: Passwords, usernames, notes, and master passwords are encrypted before leaving your browser.
-- **You control the keys**: Encryption keys are derived from your master password and never sent to the server.
+- **You control the keys**: Encryption keys are derived from your unlock method and never sent to the server.
 
 ## Data We Collect
 
