@@ -7,7 +7,7 @@
 
 **Your passwords stay on your device. No accounts. No cloud. No tracking.**
 
-Nemo is a browser extension that stores passwords encrypted with keys derived from your biometrics or PIN. The plaintext never leaves your device. Optional end-to-end encrypted sync lets you share vaults across devices without giving any server access to your data.
+Nemo is a browser extension that keeps your passwords encrypted on your device. The plaintext never leaves your browser. If you turn on sync, your vault is still end-to-end encrypted, so the server only ever sees ciphertext.
 
 <p align="center">
   <img src="tests/screenshots/readme-unlocked.png" width="400" alt="Nemo unlocked">
@@ -22,26 +22,24 @@ Nemo is a browser extension that stores passwords encrypted with keys derived fr
 
 ## Why Nemo
 
-Most password managers store your vault on their servers. They hold the keys. They see everything.
+Most password managers ask you to trust their servers. Nemo takes a different route.
 
-Nemo works differently:
+- **No account required** , you do not sign up anywhere
+- **No cloud dependency** , your vault stays in browser storage
+- **No tracking** , no analytics, no telemetry, no phone home
+- **Zero-knowledge sync** , if you enable sync, the server only stores encrypted data
 
-- **No accounts** – you do not create an account anywhere
-- **No cloud dependency** – everything lives in your browser's private storage
-- **No tracking** – no analytics, no telemetry, no phone home
-- **Zero-knowledge by design** – even if you enable sync, the server sees only encrypted blobs
+## What Nemo does
 
-## What it does
-
-- **Biometric unlock** – Touch ID, Face ID, Windows Hello via WebAuthn PRF
-- **PIN fallback** – 4-6 digits with brute-force lockout
-- **12-word recovery phrase** – BIP-39 standard, your backup if you lose your passkey
-- **Auto-fill** – detects login forms and fills credentials
-- **TOTP codes** – built-in 2FA authenticator (SHA-1, SHA-256, SHA-512)
-- **Multiple vaults** – separate work, personal, shared credentials
-- **Password generator** – configurable length, rejection sampling for uniform distribution
-- **Encrypted export/import** – move backups between devices
-- **Optional sync** – Cloudflare D1 or any custom backend, end-to-end encrypted
+- **Biometric unlock** , use Touch ID, Face ID, Windows Hello, or another WebAuthn authenticator
+- **PIN fallback** , unlock with a 4 to 6 digit PIN and brute-force lockout
+- **12-word recovery phrase** , your backup if you lose access to your passkey
+- **Auto-fill** , detects login forms and fills credentials
+- **TOTP codes** , built-in 2FA support with SHA-1, SHA-256, and SHA-512
+- **Multiple vaults** , keep work, personal, and shared credentials separate
+- **Password generator** , configurable length with rejection sampling for uniform output
+- **Encrypted export/import** , move backups safely between devices
+- **Optional sync** , use Cloudflare D1 or your own backend with end-to-end encryption
 
 ## Getting started
 
@@ -50,23 +48,23 @@ pnpm install
 pnpm dev
 ```
 
-Open `chrome://extensions`, enable Developer mode, click "Load unpacked", point it at `.output/chrome-mv3-dev`.
+Open `chrome://extensions`, turn on Developer mode, click **Load unpacked**, and point it to `.output/chrome-mv3-dev`.
 
-**Production build:**
+**Production build**
 
 ```bash
 pnpm build        # Chrome
 pnpm build:firefox
 ```
 
-**Run tests:**
+**Run tests**
 
 ```bash
 pnpm test
 cd tests && npm run test:e2e:all
 ```
 
-**Generate fresh screenshots:**
+**Generate fresh screenshots**
 
 ```bash
 cd tests && node screenshot-readme.mjs
@@ -76,61 +74,63 @@ cd tests && node screenshot-readme.mjs
 
 ## How encryption works
 
-Nemo uses layered keys. No master password. Each unlock method (biometric, PIN, recovery phrase) derives its own wrapping key. That wrapping key encrypts a single vault key. The vault key does the actual data encryption.
+Nemo uses layered keys instead of a master password.
+
+Each unlock method, biometric, PIN, or recovery phrase, derives its own wrapping key. That wrapping key encrypts a single vault key. The vault key then encrypts your data.
 
 ### The vault key
 
-Every vault gets a random 256-bit AES-GCM key at creation. It encrypts all entries, settings, and metadata. It exists only in memory while unlocked. Lock the vault and the key is dropped.
+Every vault gets a random 256-bit AES-GCM key when it is created. That key encrypts entries, settings, and metadata. It only lives in memory while the vault is unlocked. Once you lock the vault, the key is cleared.
 
 The vault key is never stored in plaintext. It is always wrapped by a key derived from one of your unlock methods.
 
 ### Unlock methods
 
-**Biometric (WebAuthn PRF)**
+**Biometric unlock, WebAuthn PRF**
 
-Your device authenticator produces a deterministic PRF output tied to your credential. Nemo feeds this through HKDF-SHA256 with a 16-byte random salt and the info string `nemo-vault-key` to derive the wrapping key.
+Your device authenticator produces a deterministic PRF output tied to your credential. Nemo runs that through HKDF-SHA256 with a 16-byte random salt and the info string `nemo-vault-key` to derive the wrapping key.
 
-This is the primary method. The PRF output never leaves the authenticator hardware.
+This is the primary unlock method. The PRF output never leaves the authenticator hardware.
 
 **PIN**
 
-A 4-6 digit PIN is stretched through PBKDF2-SHA256 with 600,000 iterations and a 32-byte random salt. After 5 wrong attempts, PIN unlock locks out for 30 minutes.
+A 4 to 6 digit PIN is stretched with PBKDF2-SHA256 using 600,000 iterations and a 32-byte random salt. After 5 wrong attempts, PIN unlock is locked out for 30 minutes.
 
 **Recovery phrase**
 
-12 words from the BIP-39 wordlist encode 128 bits of entropy with a 4-bit SHA-256 checksum. This is your fallback if you lose your passkey and your device.
+A 12-word BIP-39 phrase encodes 128 bits of entropy with a 4-bit SHA-256 checksum. Use it if you lose your passkey or need to restore access on a new device.
 
 ### Key flow
 
-```
-You authenticate (biometric, PIN, or 12 words)
+```text
+You authenticate, biometric, PIN, or recovery phrase
         |
         v
-Key derivation (HKDF or PBKDF2)
+Key derivation, HKDF or PBKDF2
         |
         v
-Wrapping key (256-bit AES-GCM)
+Wrapping key, 256-bit AES-GCM
         |
         v
-Unwrap the vault key (AES-GCM decrypt)
+Unwrap the vault key, AES-GCM decrypt
         |
         v
-Vault key (256-bit, in memory)
+Vault key, 256-bit, in memory
         |
         v
-Decrypt vault entries (AES-GCM)
+Decrypt vault entries, AES-GCM
 ```
 
 ### What the server sees
 
 If you enable sync, the server receives ciphertext, salt, IV, KDF identifier, timestamps, and a device ID. It never sees the vault key, any wrapping key, your PIN, your recovery phrase, or your PRF output.
 
-A compromised server leaks only encrypted blobs.
+If the server is compromised, the attacker gets only encrypted blobs.
 
 ### Crypto parameters
 
-| What | Algorithm | Key size | Salt/IV | Iterations |
-|------|-----------|----------|---------|------------|
+| What | Algorithm | Key size | Salt / IV | Iterations |
+|------|-----------|----------|-----------|------------|
 | Vault encryption | AES-256-GCM | 256-bit | 12-byte IV | – |
 | Key wrapping | AES-256-GCM | 256-bit | 12-byte IV | – |
 | PIN derivation | PBKDF2-SHA256 | 256-bit | 32-byte salt | 600,000 |
@@ -139,15 +139,15 @@ A compromised server leaks only encrypted blobs.
 | Password generation | CSPRNG | – | 32-byte pool | rejection sampling |
 | Recovery phrase | BIP-39 | 128-bit entropy | 4-bit checksum | 12 words |
 
-All random values come from `crypto.getRandomValues()`. CryptoKey objects are created as non-extractable where possible.
+All random values come from `crypto.getRandomValues()`. CryptoKey objects are created as non-extractable wherever possible.
 
-### Architecture diagrams
+**Architecture diagrams**
 
-**Encryption key hierarchy:**
+**Encryption key hierarchy**
 
 <img src="docs/diagrams/encryption-architecture.png" alt="Encryption Architecture" style="max-height: 400px; width: auto;">
 
-**System components:**
+**System components**
 
 <img src="docs/diagrams/system-architecture.png" alt="System Architecture" style="max-height: 450px; width: auto;">
 
@@ -157,85 +157,92 @@ All random values come from `crypto.getRandomValues()`. CryptoKey objects are cr
 
 ### Storage
 
-Nemo uses the Origin Private File System (OPFS) – a sandboxed filesystem only the extension can access. No localStorage, no cookies.
+Nemo uses the Origin Private File System, or OPFS, a sandboxed filesystem that only the extension can access. It does not use localStorage or cookies.
 
-```
+```text
 OPFS root/
-  vault-registry.json              # list of vaults + active vault ID
+  vault-registry.json           # list of vaults + active vault ID
   nemo-vault-{id}/
-    vault.enc                      # encrypted vault (ciphertext + IV + salt)
-    metadata.json                  # public metadata (salt, KDF type, timestamps)
+    vault.enc                   # encrypted vault, ciphertext + IV + salt
+    metadata.json               # public metadata, salt, KDF type, timestamps
 ```
 
-Session state lives in `chrome.storage.session`, cleared on browser close. Theme preference and sync retry state use `chrome.storage.local`.
+Session state lives in `chrome.storage.session`, which clears when the browser closes. Theme preference and sync retry state live in `chrome.storage.local`.
 
 ### Extension components
 
-```
+```text
 entrypoints/
-  background.ts       Service worker. Routes messages, manages vault
-                      lifecycle, auto-lock timer, keyboard shortcuts.
+  background.ts      Service worker. Routes messages, manages vault lifecycle,
+                     auto-lock timer, and keyboard shortcuts.
 
-  content.ts          Content script. Detects login forms, shows
-                      autofill overlay, handles credential capture.
+  content.ts         Content script. Detects login forms, shows the autofill
+                     overlay, and handles credential capture.
 
-  popup/App.tsx       Main popup UI. Entry list, search, add/edit,
-                      settings, vault selector.
+  popup/App.tsx      Main popup UI. Entry list, search, add/edit, settings,
+                     and vault selector.
 
-  webauthn/           Separate page for WebAuthn ceremonies.
+  webauthn/          Separate page for WebAuthn ceremonies.
 
 vault/
-  crypto.ts           AES-GCM encrypt/decrypt, PBKDF2 key derivation.
-  storage.ts          OPFS read/write, Cloudflare D1 adapter.
-  recovery.ts         BIP-39 phrase generation and recovery.
-  pin.ts              PIN derivation, lockout tracking.
-  custom-sync.ts      Custom backend adapter.
-  sync.ts             Cloudflare D1 sync adapter.
+  crypto.ts          AES-GCM encrypt/decrypt and PBKDF2 key derivation.
+  storage.ts         OPFS read/write and Cloudflare D1 adapter.
+  recovery.ts        BIP-39 phrase generation and recovery.
+  pin.ts             PIN derivation and lockout tracking.
+  custom-sync.ts     Custom backend adapter.
+  sync.ts            Cloudflare D1 sync adapter.
 
 utils/
-  crypto.ts           Low-level crypto helpers.
-  auth.ts             WebAuthn registration and authentication.
-  totp.ts             TOTP implementation (RFC 6238).
-  vault-ops/          Background-only vault operations.
+  crypto.ts          Low-level crypto helpers.
+  auth.ts            WebAuthn registration and authentication.
+  totp.ts            TOTP implementation, RFC 6238.
+  vault-ops/         Background-only vault operations.
 ```
 
-### Auto-fill
+### Autofill
 
-The content script runs on every page:
+The content script runs on every page.
 
-1. Scans for username and password fields using type attributes, autocomplete hints, and name/id keywords
-2. Attaches a small button next to detected fields
-3. On click, queries the background for matching entries by URL
-4. Shows an overlay with matching credentials
-5. Fills the selected entry, dispatching `input` and `change` events for framework compatibility
-6. On form submit (HTTPS only), offers to save new credentials
+1. It scans for username and password fields using type attributes, autocomplete hints, and name or id keywords
+2. It attaches a small button next to each detected field
+3. On click, it asks the background script for matching entries by URL
+4. It shows an overlay with matching credentials
+5. It fills the selected entry and dispatches `input` and `change` events for framework compatibility
+6. On form submit, HTTPS only, it offers to save new credentials
 
-The overlay uses plain DOM (no `innerHTML`) to prevent XSS from page content.
+The overlay uses plain DOM, not `innerHTML`, to reduce XSS risk from page content.
 
 ### Sync
 
-Sync is opt-in. By default, encrypted vault data syncs to a Cloudflare D1 database hosted at `nemo-sync.artyom-yagovdik.workers.dev`. You acknowledge that you are responsible for your own data and any risks. This project is not liable for data loss, breaches, or third-party costs.
+Sync is optional. By default, encrypted vault data syncs to a Cloudflare D1 database hosted at `nemo-sync.artyom-yagovdik.workers.dev`. You are responsible for your own data, and for any risks that come with running sync on third-party infrastructure. This project is not liable for data loss, breaches, or third-party costs.
 
-Alternatively, run your own backend: any HTTP server implementing four endpoints: `POST /api/register`, `GET /api/vault`, `PUT /api/vault`, `HEAD /api/vault`. A reference server is in `backend/server.ts` (Express + SQLite).
+You can also run your own backend. It only needs four endpoints:
 
-Both use last-write-wins conflict resolution. The sync manager runs every 5 minutes while unlocked, with automatic retry (3 attempts, exponential backoff: 5s, 15s, 60s).
+- `POST /api/register`
+- `GET /api/vault`
+- `PUT /api/vault`
+- `HEAD /api/vault`
+
+A reference server lives in `backend/server.ts`, built with Express and SQLite.
+
+Both sync options use last-write-wins conflict resolution. The sync manager runs every 5 minutes while the vault is unlocked, with automatic retry, 3 attempts, and exponential backoff at 5s, 15s, and 60s.
 
 ---
 
 ## Project structure
 
-```
+```text
 nemo/
-  entrypoints/          Extension entry points
+  entrypoints/         Extension entry points
   vault/                Core vault logic
   utils/                Shared utilities
     vault-ops/          Background-only operations
-  components/           React UI components
-  backend/              Reference sync server
-  config/               Extension configuration
-  tests/                Unit and E2E tests
-  style.css             Global styles
-  wxt.config.ts         WXT extension framework config
+  components/          React UI components
+  backend/             Reference sync server
+  config/              Extension configuration
+  tests/               Unit and E2E tests
+  style.css            Global styles
+  wxt.config.ts        WXT extension framework config
 ```
 
 ## License
@@ -248,4 +255,4 @@ See [PRIVACY.md](PRIVACY.md).
 
 ---
 
-This is a personal project, not a commercial security product. Export your vault regularly. If you lose your recovery phrase and your passkey, your data is gone.
+This is a personal project, not a commercial security product. Please export your vault regularly. If you lose your recovery phrase and your passkey, your data is gone.
