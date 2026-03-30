@@ -108,15 +108,7 @@ export async function decryptVault(encrypted: EncryptedVault, key: CryptoKey): P
   return JSON.parse(text) as VaultData;
 }
 
-/**
- * Note: JavaScript cannot securely wipe memory. Once a key is no longer referenced,
- * it will eventually be garbage collected. Keys marked as non-extractable cannot
- * be exported, which provides the best security guarantee.
- * @deprecated This function provides no actual security benefit. Rely on proper
- * garbage collection and non-extractable key settings instead.
- */
+/** @deprecated No-op. JS cannot securely wipe CryptoKey memory. */
 export async function wipeKey(key: CryptoKey | null): Promise<void> {
-  // No-op: JavaScript cannot guarantee memory clearing
-  // Non-extractable keys cannot be read from memory by JavaScript
   void key;
 }

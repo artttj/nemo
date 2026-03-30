@@ -1,4 +1,7 @@
 import type { SyncResult, SyncStatus } from "../../vault/types"
+import { getCustomBackendConfig, getCustomSyncStatus, updateCustomSyncStatus, CustomBackendAdapter } from "../../vault/custom-sync"
+import { getCloudflareConfig, getSyncStatus, updateSyncStatus } from "../../vault/sync"
+import { CloudflareD1Adapter } from "../../vault/storage"
 
 const SYNC_RETRY_KEY = "nemo_sync_retry"
 const SYNC_QUEUE_KEY = "nemo_sync_queue"
@@ -7,6 +10,33 @@ const MAX_RETRY_ATTEMPTS = 3
 const RETRY_DELAYS = [5000, 15000, 60000] // 5s, 15s, 1min
 const BACKUP_REMINDER_KEY = "nemo_backup_reminder"
 const BACKUP_REMINDER_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+async function getActiveSync() {
+  const custom = await getCustomBackendConfig()
+  const cloudflare = await getCloudflareConfig()
+  return { custom, cloudflare, hasEnabled: !!(custom?.enabled || cloudflare?.enabled) }
+}
+
+async function applySyncStatus(
+  custom: Awaited<ReturnType<typeof getCustomBackendConfig>>,
+  cloudflare: Awaited<ReturnType<typeof getCloudflareConfig>>,
+  status: Partial<SyncStatus>
+): Promise<void> {
+  if (custom?.enabled) {
+    await updateCustomSyncStatus(status)
+  } else if (cloudflare?.enabled) {
+    await updateSyncStatus(status)
+  }
+}
+
+function resultToStatus(result: SyncResult, extras?: { pendingChanges?: boolean }): Partial<SyncStatus> {
+  return {
+    status: result.success ? "success" : "error",
+    lastSyncAt: result.success ? result.timestamp : undefined,
+    error: result.success ? undefined : result.error,
+    ...extras
+  }
+}
 
 interface RetryState {
   attempt: number
@@ -65,9 +95,6 @@ export async function clearQueuedSync(): Promise<void> {
 }
 
 export async function syncWithRetry(): Promise<SyncResult> {
-  const { getCustomBackendConfig, CustomBackendAdapter } = await import("../../vault/custom-sync")
-  const { getCloudflareConfig } = await import("../../vault/sync")
-  const { CloudflareD1Adapter } = await import("../../vault/storage")
   const { getSessionKey, getCurrentVaultState } = await import("./session")
 
   const sessionKey = getSessionKey()
@@ -77,16 +104,15 @@ export async function syncWithRetry(): Promise<SyncResult> {
     return { success: false, error: "Vault not unlocked", timestamp: Date.now() }
   }
 
-  const customConfig = await getCustomBackendConfig()
-  const cloudflareConfig = await getCloudflareConfig()
+  const { custom, cloudflare } = await getActiveSync()
 
   let result: SyncResult
 
-  if (customConfig?.enabled) {
-    const adapter = new CustomBackendAdapter(customConfig)
+  if (custom?.enabled) {
+    const adapter = new CustomBackendAdapter(custom)
     result = await adapter.sync()
-  } else if (cloudflareConfig?.enabled) {
-    const adapter = new CloudflareD1Adapter(cloudflareConfig)
+  } else if (cloudflare?.enabled) {
+    const adapter = new CloudflareD1Adapter(cloudflare)
     result = await adapter.sync()
   } else {
     return { success: false, error: "No sync configured", timestamp: Date.now() }
@@ -121,39 +147,15 @@ function scheduleRetry(delay: number): void {
   }
 
   retryTimer = setTimeout(async () => {
-    const { getCustomBackendConfig, getCustomSyncStatus, updateCustomSyncStatus } = await import("../../vault/custom-sync")
-    const { getCloudflareConfig, getSyncStatus, updateSyncStatus } = await import("../../vault/sync")
-
-    const customConfig = await getCustomBackendConfig()
-    const cloudflareConfig = await getCloudflareConfig()
-
-    if (customConfig?.enabled) {
-      await updateCustomSyncStatus({ status: "syncing" })
-    } else if (cloudflareConfig?.enabled) {
-      await updateSyncStatus({ status: "syncing" })
-    }
+    const { custom, cloudflare } = await getActiveSync()
+    await applySyncStatus(custom, cloudflare, { status: "syncing" })
 
     const result = await syncWithRetry()
-
-    if (customConfig?.enabled) {
-      await updateCustomSyncStatus({
-        status: result.success ? "success" : "error",
-        lastSyncAt: result.success ? result.timestamp : undefined,
-        error: result.success ? undefined : result.error
-      })
-    } else if (cloudflareConfig?.enabled) {
-      await updateSyncStatus({
-        status: result.success ? "success" : "error",
-        lastSyncAt: result.success ? result.timestamp : undefined,
-        error: result.success ? undefined : result.error
-      })
-    }
+    await applySyncStatus(custom, cloudflare, resultToStatus(result))
   }, delay)
 }
 
 export async function triggerAutoSync(): Promise<void> {
-  const { getCustomBackendConfig } = await import("../../vault/custom-sync")
-  const { getCloudflareConfig } = await import("../../vault/sync")
   const { getSessionKey, getCurrentVaultState } = await import("./session")
   const { encrypt } = await import("../crypto")
 
@@ -164,11 +166,10 @@ export async function triggerAutoSync(): Promise<void> {
     return
   }
 
-  const customConfig = await getCustomBackendConfig()
-  const cloudflareConfig = await getCloudflareConfig()
+  const { custom, cloudflare } = await getActiveSync()
 
-  const isSyncEnabled = (customConfig?.enabled && customConfig.syncOnChange) ||
-                        (cloudflareConfig?.enabled && cloudflareConfig.syncOnChange)
+  const isSyncEnabled = (custom?.enabled && custom.syncOnChange) ||
+                        (cloudflare?.enabled && cloudflare.syncOnChange)
 
   if (!isSyncEnabled) {
     return
@@ -177,42 +178,17 @@ export async function triggerAutoSync(): Promise<void> {
   try {
     const { ciphertext, iv } = await encrypt(JSON.stringify(vaultState.vault), sessionKey)
 
-    const syncData = {
+    await queueSync({
       kdf: "pbkdf2",
       salt: vaultState.metadata.salt,
       iv,
       ciphertext,
       version: 1
-    }
+    })
 
-    await queueSync(syncData)
-
-    const { updateCustomSyncStatus } = await import("../../vault/custom-sync")
-    const { updateSyncStatus } = await import("../../vault/sync")
-
-    if (customConfig?.enabled) {
-      await updateCustomSyncStatus({ status: "syncing", pendingChanges: true })
-    } else if (cloudflareConfig?.enabled) {
-      await updateSyncStatus({ status: "syncing", pendingChanges: true })
-    }
-
+    await applySyncStatus(custom, cloudflare, { status: "syncing", pendingChanges: true })
     const result = await syncWithRetry()
-
-    if (customConfig?.enabled) {
-      await updateCustomSyncStatus({
-        status: result.success ? "success" : "error",
-        lastSyncAt: result.success ? result.timestamp : undefined,
-        pendingChanges: !result.success,
-        error: result.success ? undefined : result.error
-      })
-    } else if (cloudflareConfig?.enabled) {
-      await updateSyncStatus({
-        status: result.success ? "success" : "error",
-        lastSyncAt: result.success ? result.timestamp : undefined,
-        pendingChanges: !result.success,
-        error: result.success ? undefined : result.error
-      })
-    }
+    await applySyncStatus(custom, cloudflare, resultToStatus(result, { pendingChanges: !result.success }))
   } catch (error) {
     console.error("Auto-sync failed:", error)
   }
@@ -224,8 +200,6 @@ export function startPeriodicSync(): void {
   }
 
   syncTimer = setInterval(async () => {
-    const { getCustomBackendConfig, getCustomSyncStatus } = await import("../../vault/custom-sync")
-    const { getCloudflareConfig, getSyncStatus } = await import("../../vault/sync")
     const { getSessionKey, getCurrentVaultState } = await import("./session")
 
     const sessionKey = getSessionKey()
@@ -235,20 +209,15 @@ export function startPeriodicSync(): void {
       return
     }
 
-    const customConfig = await getCustomBackendConfig()
-    const cloudflareConfig = await getCloudflareConfig()
+    const { custom, cloudflare, hasEnabled } = await getActiveSync()
+    if (!hasEnabled) return
 
-    const isSyncEnabled = customConfig?.enabled || cloudflareConfig?.enabled
-
-    if (!isSyncEnabled) {
-      return
-    }
-
-    const customStatus = await getCustomSyncStatus()
-    const cloudflareStatus = await getSyncStatus()
-
-    if (customStatus.status === "syncing" || cloudflareStatus.status === "syncing") {
-      return
+    if (custom?.enabled) {
+      const status = await getCustomSyncStatus()
+      if (status.status === "syncing") return
+    } else if (cloudflare?.enabled) {
+      const status = await getSyncStatus()
+      if (status.status === "syncing") return
     }
 
     await triggerAutoSync()
@@ -267,21 +236,15 @@ export function stopPeriodicSync(): void {
 }
 
 export async function syncOnUnlock(): Promise<SyncResult | null> {
-  const { getCustomBackendConfig, getCustomSyncStatus, updateCustomSyncStatus } = await import("../../vault/custom-sync")
-  const { getCloudflareConfig, getSyncStatus, updateSyncStatus } = await import("../../vault/sync")
+  const { custom, cloudflare, hasEnabled } = await getActiveSync()
+  if (!hasEnabled) return null
 
-  const customConfig = await getCustomBackendConfig()
-  const cloudflareConfig = await getCloudflareConfig()
-
-  if (!customConfig?.enabled && !cloudflareConfig?.enabled) {
-    return null
-  }
-
-  const customStatus = await getCustomSyncStatus()
-  const cloudflareStatus = await getSyncStatus()
-
-  if (customStatus.status === "syncing" || cloudflareStatus.status === "syncing") {
-    return null
+  if (custom?.enabled) {
+    const status = await getCustomSyncStatus()
+    if (status.status === "syncing") return null
+  } else if (cloudflare?.enabled) {
+    const status = await getSyncStatus()
+    if (status.status === "syncing") return null
   }
 
   const retryState = await getRetryState()
@@ -289,34 +252,14 @@ export async function syncOnUnlock(): Promise<SyncResult | null> {
     return null
   }
 
-  if (customConfig?.enabled) {
-    await updateCustomSyncStatus({ status: "syncing" })
-  } else if (cloudflareConfig?.enabled) {
-    await updateSyncStatus({ status: "syncing" })
-  }
-
+  await applySyncStatus(custom, cloudflare, { status: "syncing" })
   const result = await syncWithRetry()
 
   if (!result.success && result.error) {
     console.error('[Nemo] Sync on unlock failed:', result.error)
   }
 
-  if (customConfig?.enabled) {
-    await updateCustomSyncStatus({
-      status: result.success ? "success" : "error",
-      lastSyncAt: result.success ? result.timestamp : undefined,
-      pendingChanges: !result.success,
-      error: result.success ? undefined : result.error
-    })
-  } else if (cloudflareConfig?.enabled) {
-    await updateSyncStatus({
-      status: result.success ? "success" : "error",
-      lastSyncAt: result.success ? result.timestamp : undefined,
-      pendingChanges: !result.success,
-      error: result.success ? undefined : result.error
-    })
-  }
-
+  await applySyncStatus(custom, cloudflare, resultToStatus(result, { pendingChanges: !result.success }))
   return result
 }
 
