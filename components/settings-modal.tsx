@@ -370,10 +370,10 @@ export function SettingsModal({
     feedbackTimeoutRef.current = setTimeout(() => setFeedback(null), 2500)
   }, [])
 
-  const handleExport = async () => {
+  const handleExport = async (format?: 'csv') => {
     setExporting(true)
     try {
-      await onExport()
+      await onExport(format)
       showFeedback('Vault exported')
     } finally { setExporting(false) }
   }
@@ -757,7 +757,15 @@ export function SettingsModal({
                 </p>
                 <div className="space-y-2">
                   <button
-                    onClick={() => onExportNemx?.()}
+                    onClick={async () => {
+                      setExporting(true)
+                      try {
+                        await onExportNemx?.()
+                        showFeedback('NEMX exported')
+                      } finally {
+                        setExporting(false)
+                      }
+                    }}
                     disabled={exporting}
                     className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-50"
                   >
@@ -772,7 +780,15 @@ export function SettingsModal({
                     <Download size={14} style={{ color: 'var(--text-muted)' }} />
                   </button>
                   <button
-                    onClick={() => onExport?.('csv')}
+                    onClick={async () => {
+                      setExporting(true)
+                      try {
+                        await onExport('csv')
+                        showFeedback('CSV exported')
+                      } finally {
+                        setExporting(false)
+                      }
+                    }}
                     disabled={exporting}
                     className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-50"
                   >

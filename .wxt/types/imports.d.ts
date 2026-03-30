@@ -13,6 +13,8 @@ declare global {
   const MatchPattern: typeof import('wxt/sandbox')['MatchPattern']
   const MigrationError: typeof import('wxt/storage')['MigrationError']
   const Modal: typeof import('/private/var/www/nemo/components/ui')['Modal']
+  const NEMX_MAGIC: typeof import('/private/var/www/nemo/utils/nemx')['NEMX_MAGIC']
+  const NEMX_VERSION: typeof import('/private/var/www/nemo/utils/nemx')['NEMX_VERSION']
   const PasswordInput: typeof import('/private/var/www/nemo/components/ui')['PasswordInput']
   const SettingsModal: typeof import('/private/var/www/nemo/components/settings-modal')['SettingsModal']
   const TOTPDisplay: typeof import('/private/var/www/nemo/components/totp-display')['TOTPDisplay']
@@ -30,8 +32,10 @@ declare global {
   const clearStoredCredential: typeof import('/private/var/www/nemo/utils/auth')['clearStoredCredential']
   const createIframeUi: typeof import('wxt/client')['createIframeUi']
   const createIntegratedUi: typeof import('wxt/client')['createIntegratedUi']
+  const createNemxExport: typeof import('/private/var/www/nemo/utils/nemx')['createNemxExport']
   const createNewVault: typeof import('/private/var/www/nemo/utils/vault')['createNewVault']
   const createShadowRootUi: typeof import('wxt/client')['createShadowRootUi']
+  const csvToVault: typeof import('/private/var/www/nemo/utils/nemx')['csvToVault']
   const decrypt: typeof import('/private/var/www/nemo/utils/crypto')['decrypt']
   const defineAppConfig: typeof import('wxt/sandbox')['defineAppConfig']
   const defineBackground: typeof import('wxt/sandbox')['defineBackground']
@@ -47,7 +51,6 @@ declare global {
   const deriveWrappingKeyFromPrf: typeof import('/private/var/www/nemo/utils/crypto')['deriveWrappingKeyFromPrf']
   const detectBiometricType: typeof import('/private/var/www/nemo/utils/biometric')['detectBiometricType']
   const encrypt: typeof import('/private/var/www/nemo/utils/crypto')['encrypt']
-  const exportVault: typeof import('/private/var/www/nemo/utils/vault')['exportVault']
   const fakeBrowser: typeof import('wxt/testing')['fakeBrowser']
   const formatRelativeTime: typeof import('/private/var/www/nemo/utils/url')['formatRelativeTime']
   const formatTOTPSecret: typeof import('/private/var/www/nemo/utils/totp')['formatTOTPSecret']
@@ -66,10 +69,14 @@ declare global {
   const getEntriesByUrl: typeof import('/private/var/www/nemo/utils/vault')['getEntriesByUrl']
   const getEntryByUrl: typeof import('/private/var/www/nemo/utils/vault')['getEntryByUrl']
   const getFaviconUrl: typeof import('/private/var/www/nemo/utils/vault')['getFaviconUrl']
+  const getFormatDescription: typeof import('/private/var/www/nemo/utils/nemx')['getFormatDescription']
+  const getNemxFileExtension: typeof import('/private/var/www/nemo/utils/nemx')['getNemxFileExtension']
+  const getNemxMimeType: typeof import('/private/var/www/nemo/utils/nemx')['getNemxMimeType']
   const getStoredCredentialId: typeof import('/private/var/www/nemo/utils/auth')['getStoredCredentialId']
   const getVaultRegistry: typeof import('/private/var/www/nemo/utils/vault')['getVaultRegistry']
   const handleWebAuthnResult: typeof import('/private/var/www/nemo/utils/webauthn-handler')['handleWebAuthnResult']
   const hasStoredCredential: typeof import('/private/var/www/nemo/utils/auth')['hasStoredCredential']
+  const importNemxExport: typeof import('/private/var/www/nemo/utils/nemx')['importNemxExport']
   const importVault: typeof import('/private/var/www/nemo/utils/vault')['importVault']
   const initializeVault: typeof import('/private/var/www/nemo/utils/vault')['initializeVault']
   const injectScript: typeof import('wxt/client')['injectScript']
@@ -81,6 +88,8 @@ declare global {
   const loadVault: typeof import('/private/var/www/nemo/utils/vault')['loadVault']
   const loadVaultKey: typeof import('/private/var/www/nemo/utils/vault')['loadVaultKey']
   const loadVaultMetadata: typeof import('/private/var/www/nemo/utils/vault')['loadVaultMetadata']
+  const nemxToVault: typeof import('/private/var/www/nemo/utils/nemx')['nemxToVault']
+  const parseNemxExport: typeof import('/private/var/www/nemo/utils/nemx')['parseNemxExport']
   const parseTOTPUri: typeof import('/private/var/www/nemo/utils/totp')['parseTOTPUri']
   const registerCredential: typeof import('/private/var/www/nemo/utils/auth')['registerCredential']
   const renameVault: typeof import('/private/var/www/nemo/utils/vault')['renameVault']
@@ -106,6 +115,8 @@ declare global {
   const useState: typeof import('react')['useState']
   const useTheme: typeof import('/private/var/www/nemo/components/theme-provider')['useTheme']
   const vaultExists: typeof import('/private/var/www/nemo/utils/vault')['vaultExists']
+  const vaultToCsv: typeof import('/private/var/www/nemo/utils/nemx')['vaultToCsv']
+  const vaultToNemx: typeof import('/private/var/www/nemo/utils/nemx')['vaultToNemx']
   const webAuthnAuthenticate: typeof import('/private/var/www/nemo/utils/webauthn-handler')['webAuthnAuthenticate']
   const webAuthnRegister: typeof import('/private/var/www/nemo/utils/webauthn-handler')['webAuthnRegister']
   const wrapVaultKey: typeof import('/private/var/www/nemo/utils/crypto')['wrapVaultKey']
@@ -116,9 +127,12 @@ declare global {
   export type { BiometricType } from '/private/var/www/nemo/utils/biometric'
   import('/private/var/www/nemo/utils/biometric')
   // @ts-ignore
+  export type { NemxAttributes, NemxVault, NemxItem, NemxField, NemxSection, NemxData, NemxFile, ExportFormat } from '/private/var/www/nemo/utils/nemx'
+  import('/private/var/www/nemo/utils/nemx')
+  // @ts-ignore
   export type { TOTPCode } from '/private/var/www/nemo/utils/totp'
   import('/private/var/www/nemo/utils/totp')
   // @ts-ignore
-  export type { TOTPConfig, EntryHistory, VaultEntry, SitePreferences, VaultSettings, VaultMetadata, VaultInfo, VaultRegistry, EncryptedVaultData, Vault, VaultState, MessageType, Message, MessageResponse, AddEntryPayload, UpdateEntryPayload, SearchPayload, ClipboardPayload, ImportVaultPayload, CreateVaultPayload, RestoreVersionPayload, SitePreferencesPayload } from '/private/var/www/nemo/utils/types'
+  export type { TOTPConfig, EntryHistory, VaultEntry, SitePreferences, VaultSettings, VaultMetadata, VaultInfo, VaultRegistry, EncryptedVaultData, Vault, VaultState, MessageType, Message, MessageResponse, AddEntryPayload, UpdateEntryPayload, SearchPayload, ClipboardPayload, ImportVaultPayload, ExportVaultPayload, CreateVaultPayload, RestoreVersionPayload, SitePreferencesPayload } from '/private/var/www/nemo/utils/types'
   import('/private/var/www/nemo/utils/types')
 }
