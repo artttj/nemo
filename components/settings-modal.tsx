@@ -207,6 +207,7 @@ export function SettingsModal({
   })
   const [testingConnection, setTestingConnection] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [acknowledgeOptIn, setAcknowledgeOptIn] = useState(false)
 
   const [showSyncToken, setShowSyncToken] = useState(false)
   const [showImportToken, setShowImportToken] = useState(false)
@@ -1042,17 +1043,39 @@ export function SettingsModal({
                     <p className="text-[12px] text-[var(--text-tertiary)]">No account. No email. No tracking.</p>
                   </div>
 
+                  <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Cloud size={12} className="text-[var(--text-tertiary)]" />
+                      <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
+                    </div>
+                    <p className="text-[12px] text-[var(--text-primary)] font-mono break-all">
+                      https://nemo-sync.artyom-yagovdik.workers.dev
+                    </p>
+                  </div>
+
                   <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
                     <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                      <strong className="text-[var(--text-primary)]">Opt-in only.</strong> Sync uses your own Cloudflare D1 database.
-                      By enabling sync, you acknowledge that you are responsible for your own credentials, data, and any Cloudflare charges.
+                      <strong className="text-[var(--text-primary)]">Opt-in only.</strong> Your encrypted vault syncs to a Cloudflare D1 database.
+                      By enabling sync, you acknowledge that you are responsible for your own credentials, data, and any charges.
                       This project is not liable for data loss, breaches, or third-party costs.
                     </p>
                   </div>
 
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgeOptIn}
+                      onChange={(e) => setAcknowledgeOptIn(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--accent)]"
+                    />
+                    <span className="text-[12px] text-[var(--text-secondary)]">
+                      I understand that sync is optional and I am responsible for my own data
+                    </span>
+                  </label>
+
                   <button
                     onClick={handleEnableSync}
-                    disabled={testingConnection}
+                    disabled={testingConnection || !acknowledgeOptIn}
                     className="w-full py-3.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-xl text-[14px] font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {testingConnection ? (

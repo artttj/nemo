@@ -214,7 +214,7 @@ The overlay uses plain DOM (no `innerHTML`) to prevent XSS from page content.
 
 ### Sync
 
-Sync is opt-in. This project uses a Cloudflare D1 backend for convenience. You can enable it by providing your own Cloudflare API token and database ID – you're responsible for your own D1 setup, costs, and data. This project is not responsible for any data loss, breaches, or Cloudflare charges incurred.
+Sync is opt-in. By default, encrypted vault data syncs to a Cloudflare D1 database hosted at `nemo-sync.artyom-yagovdik.workers.dev`. You acknowledge that you are responsible for your own data and any risks. This project is not liable for data loss, breaches, or third-party costs.
 
 Alternatively, run your own backend: any HTTP server implementing four endpoints: `POST /api/register`, `GET /api/vault`, `PUT /api/vault`, `HEAD /api/vault`. A reference server is in `backend/server.ts` (Express + SQLite).
 
