@@ -1042,6 +1042,14 @@ export function SettingsModal({
                     <p className="text-[12px] text-[var(--text-tertiary)]">No account. No email. No tracking.</p>
                   </div>
 
+                  <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                      <strong className="text-[var(--text-primary)]">Opt-in only.</strong> Sync uses your own Cloudflare D1 database.
+                      By enabling sync, you acknowledge that you are responsible for your own credentials, data, and any Cloudflare charges.
+                      This project is not liable for data loss, breaches, or third-party costs.
+                    </p>
+                  </div>
+
                   <button
                     onClick={handleEnableSync}
                     disabled={testingConnection}
