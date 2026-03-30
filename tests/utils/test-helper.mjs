@@ -210,3 +210,185 @@ export async function isOverlayProperlyPositioned(page) {
 }
 
 export { EXTENSION_PATH, SCREENSHOT_DIR };
+
+/**
+ * Wait for Nemo buttons to appear on the page
+ * @param {Page} page - Playwright page
+ * @param {number} timeout - Timeout in ms (default: 5000)
+ * @returns {Promise<boolean>}
+ */
+export async function waitForNemoButtons(page, timeout = 5000) {
+  const startTime = Date.now();
+  while (Date.now() - startTime < timeout) {
+    const buttons = await page.evaluate(() =>
+      document.querySelectorAll('[data-nemo-action]').length
+    );
+    if (buttons > 0) return true;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return false;
+}
+
+/**
+ * Get all Nemo button info
+ * @param {Page} page - Playwright page
+ * @returns {Promise<Array<{action: string, visible: boolean, rect: DOMRect}>>}
+ */
+export async function getNemoButtons(page) {
+  return await page.evaluate(() => {
+    const buttons = document.querySelectorAll('[data-nemo-action]');
+    return Array.from(buttons).map(b => {
+      const rect = b.getBoundingClientRect();
+      const computed = window.getComputedStyle(b);
+      return {
+        action: b.dataset.nemoAction,
+        visible: rect.width > 0 && rect.height > 0 && computed.display !== 'none',
+        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        opacity: computed.opacity,
+        pointerEvents: computed.pointerEvents
+      };
+    });
+  });
+}
+
+/**
+ * Click a Nemo button by action type
+ * @param {Page} page - Playwright page
+ * @param {string} action - Button action ('fill' or 'generate')
+ * @returns {Promise<boolean>}
+ */
+export async function clickNemoButton(page, action) {
+  const button = page.locator(`[data-nemo-action="${action}"]`).first();
+  const count = await button.count();
+  if (count > 0) {
+    await button.click();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get form field values
+ * @param {Page} page - Playwright page
+ * @param {Array<string>} selectors - Field selectors
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function getFormFieldValues(page, selectors) {
+  return await page.evaluate((sels) => {
+    const values = {};
+    for (const [name, selector] of Object.entries(sels)) {
+      const el = document.querySelector(selector);
+      values[name] = el?.value || '';
+    }
+    return values;
+  }, selectors);
+}
+
+/**
+ * Check if autofill overlay is visible
+ * @param {Page} page - Playwright page
+ * @returns {Promise<{visible: boolean, text?: string}>}
+ */
+export async function checkAutofillOverlayVisible(page) {
+  return await page.evaluate(() => {
+    const divs = document.querySelectorAll('div');
+    for (const div of divs) {
+      const computed = window.getComputedStyle(div);
+      if (computed.zIndex === '2147483647') {
+        const rect = div.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          return {
+            visible: true,
+            text: div.textContent?.substring(0, 100),
+            rect: { width: rect.width, height: rect.height }
+          };
+        }
+      }
+    }
+    return { visible: false };
+  });
+}
+
+/**
+ * Select entry from autofill overlay by index or text
+ * @param {Page} page - Playwright page
+ * @param {number|string} selector - Index or text to match
+ * @returns {Promise<boolean>}
+ */
+export async function selectAutofillEntry(page, selector = 0) {
+  return await page.evaluate((sel) => {
+    // Try to find by class first
+    const entries = document.querySelectorAll('.nemo-entry-item');
+    if (entries.length > 0) {
+      if (typeof sel === 'number' && entries[sel]) {
+        entries[sel].click();
+        return true;
+      }
+    }
+
+    // Fallback: find by text content
+    const allDivs = document.querySelectorAll('div');
+    for (const div of allDivs) {
+      if (typeof sel === 'string' && div.textContent?.includes(sel)) {
+        div.click();
+        return true;
+      }
+    }
+
+    return false;
+  }, selector);
+}
+
+/**
+ * Inject mock vault state into browser context
+ * @param {BrowserContext} context - Playwright browser context
+ * @param {Object} vaultState - Vault state object
+ */
+export async function injectMockVault(context, vaultState) {
+  await context.addInitScript((state) => {
+    window.__MOCK_VAULT_STATE__ = JSON.parse(state);
+
+    const originalSendMessage = chrome.runtime.sendMessage;
+    chrome.runtime.sendMessage = async (message) => {
+      const vault = window.__MOCK_VAULT_STATE__;
+
+      switch (message.type) {
+        case 'GET_VAULT_STATE':
+          return { success: true, data: vault };
+
+        case 'GET_ENTRIES_FOR_AUTOFILL':
+          if (!vault.isUnlocked) {
+            return { success: false, error: 'Vault is locked' };
+          }
+          return { success: true, data: vault.vault?.entries || [] };
+
+        case 'GET_ENTRY_BY_URL':
+          if (!vault.isUnlocked) {
+            return { success: false, error: 'Vault is locked' };
+          }
+          try {
+            const url = message.payload || '';
+            const hostname = new URL(url).hostname.replace(/^www\./, '');
+            const entries = vault.vault?.entries || [];
+            const match = entries.find(e => {
+              if (!e.url) return false;
+              const entryHostname = new URL(e.url).hostname.replace(/^www\./, '');
+              return hostname === entryHostname || hostname.endsWith('.' + entryHostname);
+            });
+            return { success: true, data: match || null };
+          } catch {
+            return { success: true, data: vault.vault?.entries?.[0] || null };
+          }
+
+        case 'GET_SITE_PREFERENCES':
+          return { success: true, data: vault.sitePreferences?.[message.payload] || null };
+
+        case 'ADD_ENTRY':
+          return { success: true, data: message.payload };
+
+        default:
+          return originalSendMessage?.call(chrome.runtime, message);
+      }
+    };
+  }, JSON.stringify(vaultState));
+}

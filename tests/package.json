@@ -9,9 +9,11 @@
     "test:e2e:mock": "node e2e/autofill-mock-test.spec.mjs",
     "test:e2e:debug": "node e2e/debug-autofill.spec.mjs",
     "test:e2e:vault": "node e2e/vault-lifecycle.spec.mjs",
-    "test:e2e:all": "npm run test:e2e:mock && npm run test:e2e:position && npm run test:e2e:visible && npm run test:e2e:google",
+    "test:e2e:real": "node e2e/autofill-real-behavior.spec.mjs",
+    "test:e2e:github": "node e2e/github-autofill.spec.mjs",
+    "test:e2e:all": "npm run test:e2e:mock && npm run test:e2e:position && npm run test:e2e:visible && npm run test:e2e:real",
     "test:unit": "echo 'Unit tests not yet implemented'",
-    "test": "npm run test:e2e:position"
+    "test": "npm run test:e2e:real"
   },
   "devDependencies": {
     "playwright": "^1.40.0"
