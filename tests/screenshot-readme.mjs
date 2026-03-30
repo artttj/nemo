@@ -447,9 +447,12 @@ async function main() {
     const lockBtn = await findButtonByText(popupPage, ['Lock']);
     if (lockBtn) {
       await lockBtn.click();
-      await delay(1000);
+      await delay(1500);
       console.log('Vault locked');
     }
+
+    // Wait for locked view to fully render
+    await delay(500);
 
     // Screenshot: Locked state
     const lockedPath = join(OUTPUT_DIR, 'readme-locked.png');
