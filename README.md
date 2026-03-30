@@ -98,7 +98,7 @@ A 4 to 6 digit PIN is stretched with PBKDF2-SHA256 using 600,000 iterations and 
 
 **Recovery phrase**
 
-A 12-word BIP-39 phrase encodes 128 bits of entropy with a 4-bit SHA-256 checksum. Use it if you lose your passkey or need to restore access on a new device.
+A 12-word BIP-39 phrase encodes 128 bits of entropy with a 4-bit SHA-256 checksum. The phrase is run through HKDF-SHA256 with a fixed info string to derive the wrapping key. Use it if you lose your passkey or need to restore access on a new device.
 
 ### Key flow
 
@@ -161,9 +161,8 @@ Nemo uses the Origin Private File System, or OPFS, a sandboxed filesystem that o
 
 ```text
 OPFS root/
-  vault-registry.json           # list of vaults + active vault ID
-  nemo-vault-{id}/
-    vault.enc                   # encrypted vault, ciphertext + IV + salt
+  nemo-vault/
+    vault.enc                   # encrypted vault blob (ciphertext + IV + salt)
     metadata.json               # public metadata, salt, KDF type, timestamps
 ```
 
@@ -216,16 +215,18 @@ The overlay uses plain DOM, not `innerHTML`, to reduce XSS risk from page conten
 
 Sync is optional. By default, encrypted vault data syncs to a Cloudflare D1 database hosted at `nemo-sync.artyom-yagovdik.workers.dev`. You are responsible for your own data, and for any risks that come with running sync on third-party infrastructure. This project is not liable for data loss, breaches, or third-party costs.
 
-You can also run your own backend. It only needs four endpoints:
+You can also run your own backend. It needs these endpoints:
 
-- `POST /api/register`
-- `GET /api/vault`
-- `PUT /api/vault`
-- `HEAD /api/vault`
+- `POST /api/register` — create a new user and return an auth token
+- `GET /api/vault` — fetch the encrypted vault
+- `PUT /api/vault` — save the encrypted vault
+- `HEAD /api/vault` — check if a vault exists
+- `GET /api/vault/metadata` — fetch vault metadata
+- `PUT /api/vault/metadata` — save vault metadata
 
 A reference server lives in `backend/server.ts`, built with Express and SQLite.
 
-Both sync options use last-write-wins conflict resolution. The sync manager runs every 5 minutes while the vault is unlocked, with automatic retry, 3 attempts, and exponential backoff at 5s, 15s, and 60s.
+Both sync options use last-write-wins conflict resolution. The sync manager runs every 5 minutes while the vault is unlocked.
 
 ---
 

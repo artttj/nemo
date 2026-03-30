@@ -33,3 +33,6 @@ dist/
 .tsbuildinfo
 .output/
 .wxt/
+
+# test files
+tests/.test-vault-state.json
