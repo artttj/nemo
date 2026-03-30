@@ -111,9 +111,23 @@ async function exportExcalidrawToPng(excalidrawJson, outputPath) {
         const fontSize = el.fontSize || 16;
         ctx.font = \`\${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif\`;
         ctx.fillStyle = el.strokeColor || '#1e1e1e';
-        ctx.textAlign = el.textAlign || 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(el.text, x, y);
+        const textAlign = el.textAlign || 'left';
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = 'middle';
+
+        // For center-aligned text, position at center of element bounds
+        const textX = textAlign === 'center' ? x + (el.width || 0) / 2 : x;
+        const textY = y + (el.height || 0) / 2;
+
+        // Handle multi-line text
+        const lines = el.text.split('\\n');
+        const lineHeight = fontSize * 1.25;
+        const totalHeight = lines.length * lineHeight;
+        const startY = textY - (totalHeight / 2) + (lineHeight / 2);
+
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], textX, startY + i * lineHeight);
+        }
       } else if (el.type === 'arrow') {
         ctx.beginPath();
         const points = el.points || [[0, 0], [el.width || 0, el.height || 0]];
