@@ -266,17 +266,13 @@ nemo/
 
 ## Screenshots
 
-**Popup UI (locked state):**
+**Popup UI:**
 
-<img src="tests/screenshots/vault-01-popup.png" alt="Popup locked" style="max-height: 300px; width: auto;">
-
-**Popup UI (unlocked with entries):**
-
-<img src="tests/screenshots/vault-02-after-action.png" alt="Popup unlocked" style="max-height: 300px; width: auto;">
+<img src="tests/screenshots/pptr-01-popup.png" alt="Popup UI" style="max-height: 400px; width: auto;">
 
 **Auto-fill overlay on login forms:**
 
-<img src="tests/screenshots/position-01-initial.png" alt="Autofill overlay" style="max-height: 250px; width: auto;">
+<img src="tests/screenshots/mock-03-password-focused.png" alt="Autofill overlay" style="max-height: 300px; width: auto;">
 
 ## License
 
