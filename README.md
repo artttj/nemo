@@ -122,7 +122,7 @@ Apache 2.0. See [LICENSE](LICENSE).
 
 ## Privacy
 
-See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+See [PRIVACY.md](PRIVACY.md).
 
 ---
 
