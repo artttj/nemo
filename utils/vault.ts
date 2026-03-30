@@ -2,7 +2,8 @@
 
 import type { Vault, VaultMetadata, VaultEntry, VaultInfo, VaultRegistry, EntryHistory } from "./types"
 import type { RecoveryData } from "../vault/types"
-import { encrypt, decrypt, generateSalt, generateUUID, generateVaultKey, wrapVaultKey, unwrapVaultKey, bufferToBase64 } from "./crypto"
+import { encrypt, generateSalt, generateUUID, generateVaultKey, wrapVaultKey, unwrapVaultKey, bufferToBase64 } from "./crypto"
+import { createNemxExport, importNemxExport, vaultToCsv, csvToVault } from "./nemx"
 
 const VAULT_PREFIX = "nemo-vault-"
 const REGISTRY_FILE = "vault-registry.json"
@@ -398,83 +399,44 @@ export async function saveVault(vault: Vault, key: CryptoKey): Promise<void> {
   return saveLock
 }
 
-export async function exportVault(key: CryptoKey): Promise<string> {
-  const vault = await loadVault(key)
-  if (!vault) throw new Error("No vault found")
 
-  const metadata = await loadVaultMetadata()
-  if (!metadata) throw new Error("No metadata found")
-
-  const recoveryData = await loadRecoveryData()
-
-  const { ciphertext, iv } = await encrypt(JSON.stringify({
-    vault,
-    metadata,
-    recoveryData
-  }), key)
-
-  return JSON.stringify({
-    version: "1.1.0",
-    exportedAt: Date.now(),
-    data: { ciphertext, iv }
-  })
-}
-
-export async function importVault(
-  exportedData: string,
-  key: CryptoKey
-): Promise<{ vault: Vault; metadata: VaultMetadata }> {
+export async function importVault(exportedData: string, key: CryptoKey): Promise<{ vault: Vault; metadata: VaultMetadata }> {
   const parsed = JSON.parse(exportedData)
 
-  const supportedVersions = ["1.0.0", "1.1.0"]
-  if (parsed.version && !supportedVersions.includes(parsed.version)) {
-    throw new Error(`Unsupported backup version: ${parsed.version}. Supported versions: ${supportedVersions.join(", ")}`)
+  if (!parsed.attributes || !parsed.data) {
+    throw new Error("Invalid NEMX format. Only NEMX exports can be imported.")
   }
 
-  if (!parsed.data?.ciphertext || !parsed.data?.iv) {
-    throw new Error("Invalid backup format")
-  }
-
-  const decrypted = await decrypt(parsed.data.ciphertext, parsed.data.iv, key)
-  const { vault, metadata, recoveryData } = JSON.parse(decrypted)
-
-  if (!metadata?.vaultId || typeof metadata.vaultId !== 'string' ||
-      !metadata?.name || typeof metadata.name !== 'string' ||
-      typeof metadata?.createdAt !== 'number' ||
-      typeof metadata?.updatedAt !== 'number' ||
-      typeof metadata?.version !== 'string' ||
-      typeof metadata?.salt !== 'string') {
-    throw new Error('Invalid or corrupted backup metadata')
-  }
-
-  if (!Array.isArray(vault?.entries)) {
-    throw new Error('Invalid vault data')
-  }
-
+  const { entries, settings } = importNemxExport(exportedData)
   const activeId = await getActiveVaultId()
   if (!activeId) throw new Error("No active vault")
+
+  const newVault: Vault = {
+    entries,
+    settings: { ...settings, autoLockMinutes: 15, theme: "dark" } as any
+  }
+
+  const { ciphertext, iv } = await encrypt(JSON.stringify(newVault), key)
 
   const dir = await getVaultDirectory(activeId, true)
   if (!dir) throw new Error("Failed to access vault directory")
 
   const vaultFile = await dir.getFileHandle(VAULT_FILE, { create: true })
   const vaultWriter = await vaultFile.createWritable()
-  await vaultWriter.write(JSON.stringify({
-    ciphertext: parsed.data.ciphertext,
-    iv: parsed.data.iv
-  }))
+  await vaultWriter.write(JSON.stringify({ ciphertext, iv }))
   await vaultWriter.close()
 
   const metadataFile = await dir.getFileHandle(METADATA_FILE, { create: true })
+  const metadataBlob = await metadataFile.getFile()
+  const metadataText = await metadataBlob.text()
+  const metadata = JSON.parse(metadataText) as VaultMetadata
+  metadata.updatedAt = Date.now()
+
   const metadataWriter = await metadataFile.createWritable()
   await metadataWriter.write(JSON.stringify(metadata, null, 2))
   await metadataWriter.close()
 
-  if (recoveryData) {
-    await storeRecoveryData(recoveryData)
-  }
-
-  return { vault, metadata }
+  return { vault: newVault, metadata }
 }
 
 export function addEntry(vault: Vault, entry: Omit<VaultEntry, "id" | "createdAt" | "updatedAt">): Vault {

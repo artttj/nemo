@@ -9,7 +9,6 @@ import {
   restoreEntryVersion,
   searchEntries,
   getEntryByUrl,
-  exportVault,
   importVault
 } from "../vault"
 import { getSessionKey, getCurrentVaultState } from "./session"
@@ -150,14 +149,18 @@ export async function handleGetEntryByUrl(url: string): Promise<MessageResponse<
   }
 }
 
-export async function handleExportVault(): Promise<MessageResponse<string>> {
+export async function handleExportVault(format?: "nemx" | "csv"): Promise<MessageResponse<string>> {
   try {
-    const sessionKey = getSessionKey()
-    if (!sessionKey) {
+    const vaultState = getCurrentVaultState()
+    if (!vaultState.vault) {
       return { success: false, error: "Vault is locked" }
     }
 
-    const exported = await exportVault(sessionKey)
+    const { vault } = vaultState
+    const exported = format === "csv"
+      ? (await import("../../utils/nemx")).vaultToCsv(vault.entries)
+      : (await import("../../utils/nemx")).createNemxExport(vault.entries, vault.settings)
+
     return { success: true, data: exported }
   } catch (error) {
     return {
@@ -169,17 +172,45 @@ export async function handleExportVault(): Promise<MessageResponse<string>> {
 
 export async function handleImportVault(data: string): Promise<MessageResponse> {
   try {
-    const sessionKey = getSessionKey()
     const vaultState = getCurrentVaultState()
-    if (!sessionKey) {
+    if (!vaultState.vault) {
       return { success: false, error: "Vault is locked" }
     }
 
-    const { vault } = await importVault(data, sessionKey)
-    vaultState.vault = vault
+    const trimmed = data.trim()
+    let entries: VaultEntry[]
+
+    if (trimmed.startsWith("folder,")) {
+      const { csvToVault } = await import("../../utils/nemx")
+      const result = csvToVault(trimmed)
+      entries = result.entries
+    } else {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (parsed.attributes && parsed.data) {
+          const { importNemxExport } = await import("../../utils/nemx")
+          const result = importNemxExport(trimmed)
+          entries = result.entries
+        } else {
+          return { success: false, error: "Unsupported format. Please use NEMX or CSV export." }
+        }
+      } catch {
+        return { success: false, error: "Invalid file format. Please use NEMX or CSV export." }
+      }
+    }
+
+    for (const entry of entries) {
+      vaultState.vault.entries.push(entry)
+    }
     vaultState.lastActivity = Date.now()
 
-    return { success: true, data: vault }
+    const sessionKey = getSessionKey()
+    if (sessionKey) {
+      const { saveVault } = await import("../../utils/vault")
+      await saveVault(vaultState.vault, sessionKey)
+    }
+
+    return { success: true }
   } catch (error) {
     return {
       success: false,

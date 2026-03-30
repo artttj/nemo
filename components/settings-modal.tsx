@@ -164,12 +164,13 @@ export function SettingsModal({
   vaultRegistry,
   currentVaultId,
   onRenameVault,
-  onDeleteVault
+  onDeleteVault,
+  onExportNemx
 }: {
   isOpen: boolean
   onClose: () => void
   settings: VaultSettings | null
-  onExport: () => Promise<void>
+  onExport: (format?: 'csv') => Promise<void>
   onImport: (data: string) => Promise<void>
   onSettingsChange: (settings: Partial<VaultSettings>) => void
   hasPinSetup: boolean
@@ -179,6 +180,7 @@ export function SettingsModal({
   currentVaultId?: string | null
   onRenameVault?: (vaultId: string, name: string) => Promise<{ success: boolean; error?: string }>
   onDeleteVault?: (vaultId: string) => Promise<{ success: boolean; error?: string }>
+  onExportNemx?: () => Promise<void>
 }) {
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -379,7 +381,7 @@ export function SettingsModal({
   const handleImport = async () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.json'
+    input.accept = '.nemx,.csv,.json'
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
@@ -751,18 +753,40 @@ export function SettingsModal({
                   <h3 className="text-[13px] font-semibold text-[var(--text-primary)]">Export</h3>
                 </div>
                 <p className="text-[var(--text-tertiary)] text-[12px] mb-3 ml-[22px]">
-                  Download an encrypted copy of your vault for backup or migration.
+                  Download your vault data in a portable format.
                 </p>
-                <button
-                  onClick={handleExport}
-                  disabled={exporting}
-                  className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-50"
-                >
-                  <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                    {exporting ? 'Exporting...' : 'Download vault backup'}
-                  </span>
-                  <Download size={14} style={{ color: 'var(--text-muted)' }} />
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => onExportNemx?.()}
+                    disabled={exporting}
+                    className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-50"
+                  >
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className="text-[13px] font-medium text-[var(--text-secondary)]">
+                        {exporting ? 'Exporting...' : 'NEMX format'}
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)]">
+                        Native Nemo export (recommended for backup)
+                      </span>
+                    </div>
+                    <Download size={14} style={{ color: 'var(--text-muted)' }} />
+                  </button>
+                  <button
+                    onClick={() => onExport?.('csv')}
+                    disabled={exporting}
+                    className="w-full flex items-center justify-between px-3 py-3.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] transition-colors disabled:opacity-50"
+                  >
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className="text-[13px] font-medium text-[var(--text-secondary)]">
+                        {exporting ? 'Exporting...' : 'CSV format'}
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)]">
+                        Compatible with Bitwarden, 1Password, LastPass
+                      </span>
+                    </div>
+                    <Download size={14} style={{ color: 'var(--text-muted)' }} />
+                  </button>
+                </div>
               </div>
 
               <div className="h-px bg-[var(--border)]" />
@@ -793,7 +817,7 @@ export function SettingsModal({
                 <div className="flex items-start gap-2">
                   <Info size={14} style={{ color: 'var(--text-muted)' }} className="mt-0.5 flex-shrink-0" />
                   <p className="text-[11px] text-[var(--text-tertiary)] leading-relaxed">
-                    Backups include all entries and settings. They are encrypted with your vault key and can only be restored on devices where you can authenticate.
+                    NEMX is the native Nemo export format. CSV can be imported to other password managers like Bitwarden or 1Password.
                   </p>
                 </div>
               </div>

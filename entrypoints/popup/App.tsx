@@ -307,14 +307,16 @@ function AppContent() {
     setEditingEntry(null)
   }
 
-  const handleExport = async () => {
-    const response = await chrome.runtime.sendMessage({ type: 'EXPORT_VAULT' })
+  const handleExport = async (format: 'nemx' | 'csv' = 'nemx') => {
+    const response = await chrome.runtime.sendMessage({ type: 'EXPORT_VAULT', payload: { format } })
     if (response.success) {
-      const blob = new Blob([response.data], { type: 'application/json' })
+      const extension = format === 'csv' ? 'csv' : 'nemx'
+      const mimeType = format === 'csv' ? 'text/csv' : 'application/x-nemo-export'
+      const blob = new Blob([response.data], { type: mimeType })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `nemo-backup-${new Date().toISOString().split('T')[0]}.json`
+      a.download = `nemo-export-${new Date().toISOString().split('T')[0]}.${extension}`
       a.click()
       URL.revokeObjectURL(url)
     }
@@ -802,6 +804,7 @@ function AppContent() {
         currentVaultId={state.metadata?.vaultId ?? null}
         onRenameVault={handleRenameVault}
         onDeleteVault={handleDeleteVault}
+        onExportNemx={() => handleExport('nemx')}
       />
     </div>
   )

@@ -234,7 +234,7 @@ async function handleMessage(message: Message, sender?: chrome.runtime.MessageSe
       return handleGetEntryByUrl(message.payload as string)
 
     case 'EXPORT_VAULT':
-      return handleExportVault()
+      return handleExportVault((message.payload as { format?: "nemx" | "csv" })?.format)
 
     case 'IMPORT_VAULT':
       return handleImportVault(message.payload as string)

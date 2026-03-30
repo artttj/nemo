@@ -114,6 +114,7 @@ export type MessageType =
   | "COPY_TO_CLIPBOARD"
   | "EXPORT_VAULT"
   | "IMPORT_VAULT"
+  | "EXPORT_VAULT_NEMX"
   | "GET_ENTRY_BY_URL"
   | "UPDATE_SETTINGS"
   | "WEBAUTHN_REGISTER"
@@ -194,6 +195,10 @@ export interface ClipboardPayload {
 export interface ImportVaultPayload {
   data: string
   password?: string
+}
+
+export interface ExportVaultPayload {
+  format?: "nemx" | "csv"
 }
 
 export interface CreateVaultPayload {
