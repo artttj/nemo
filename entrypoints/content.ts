@@ -1,6 +1,7 @@
 
 
 import { defineContentScript } from 'wxt/sandbox'
+import { getDomain } from '~/utils/url'
 
 const generatorDefaults = {
   length: 20,
@@ -82,13 +83,7 @@ export default defineContentScript({
       return entry
     }
 
-    function getHostnameFromUrl(url: string): string {
-      try {
-        return new URL(url).hostname.replace(/^www\./, '')
-      } catch {
-        return ''
-      }
-    }
+    const getHostnameFromUrl = getDomain
 
     function simulateInput(field: HTMLInputElement) {
       field.dispatchEvent(new Event('input', { bubbles: true }))

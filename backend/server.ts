@@ -71,16 +71,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Constant-time comparison to prevent timing attacks
-function timingSafeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
-}
-
 async function authenticateToken(
   req: express.Request,
   res: express.Response,
@@ -95,22 +85,16 @@ async function authenticateToken(
 
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-  // Get all users and compare in constant-time to prevent timing attacks
-  const users = await db.all("SELECT id, auth_token_hash FROM users");
+  const user = await db.get(
+    "SELECT id, auth_token_hash FROM users WHERE auth_token_hash = ?",
+    tokenHash
+  );
 
-  let validUser: { id: string } | null = null;
-  for (const user of users) {
-    if (timingSafeCompare(user.auth_token_hash, tokenHash)) {
-      validUser = user;
-      break;
-    }
-  }
-
-  if (!validUser) {
+  if (!user || !crypto.timingSafeEqual(Buffer.from(user.auth_token_hash), Buffer.from(tokenHash))) {
     return res.status(401).json({ error: "Invalid token" });
   }
 
-  (req as any).userId = validUser.id;
+  (req as any).userId = user.id;
   next();
 }
 
