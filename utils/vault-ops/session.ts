@@ -26,7 +26,8 @@ async function persistVaultState(): Promise<void> {
       [SESSION_STATE_NAME]: {
         isUnlocked: vaultState.isUnlocked,
         lastActivity: vaultState.lastActivity,
-        activeVaultId: vaultState.metadata?.vaultId ?? null
+        activeVaultId: vaultState.metadata?.vaultId ?? null,
+        settings: vaultState.vault?.settings
       }
     })
   } catch {
@@ -37,9 +38,14 @@ async function restoreVaultState(): Promise<void> {
   try {
     const stored = await chrome.storage.session.get(SESSION_STATE_NAME)
     if (stored[SESSION_STATE_NAME]) {
-      const { isUnlocked, lastActivity } = stored[SESSION_STATE_NAME]
+      const { isUnlocked, lastActivity, settings } = stored[SESSION_STATE_NAME]
       vaultState.isUnlocked = isUnlocked
       vaultState.lastActivity = lastActivity ?? Date.now()
+      if (settings && vaultState.vault) {
+        vaultState.vault.settings = settings
+      } else if (settings) {
+        vaultState.vault = { ...INITIAL_VAULT, settings }
+      }
     }
   } catch {
   }

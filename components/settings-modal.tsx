@@ -18,6 +18,7 @@ interface SyncStatusData {
   pendingChanges: boolean
   enabled: boolean
   authToken?: string
+  baseUrl?: string
 }
 
 function RecoveryPhraseSection() {
@@ -955,6 +956,16 @@ export function SettingsModal({
                     <span className="text-[12px] text-[var(--text-muted)]">
                       {syncStatus.lastSyncAt ? `Last: ${formatLastSync(syncStatus.lastSyncAt)}` : 'Not synced yet'}
                     </span>
+                  </div>
+
+                  <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Cloud size={12} className="text-[var(--text-tertiary)]" />
+                      <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
+                    </div>
+                    <p className="text-[13px] text-[var(--text-primary)] font-mono truncate" title={syncStatus.baseUrl || 'Default server'}>
+                      {syncStatus.baseUrl || 'Anonymous Sync Server'}
+                    </p>
                   </div>
 
                   <button
