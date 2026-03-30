@@ -1004,8 +1004,8 @@ export function SettingsModal({
                       <Cloud size={12} className="text-[var(--text-tertiary)]" />
                       <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
                     </div>
-                    <p className="text-[13px] text-[var(--text-primary)] font-mono truncate" title={syncStatus.baseUrl || 'https://nemo-sync.artyom-yagovdik.workers.dev'}>
-                      {syncStatus.baseUrl || 'https://nemo-sync.artyom-yagovdik.workers.dev'}
+                    <p className="text-[13px] text-[var(--text-primary)] font-mono truncate" title={syncStatus.baseUrl || 'https://sync.nemo.y1.digital'}>
+                      {syncStatus.baseUrl || 'https://sync.nemo.y1.digital'}
                     </p>
                   </div>
 
@@ -1089,7 +1089,7 @@ export function SettingsModal({
                       <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
                     </div>
                     <p className="text-[12px] text-[var(--text-primary)] font-mono break-all">
-                      https://nemo-sync.artyom-yagovdik.workers.dev
+                      https://sync.nemo.y1.digital
                     </p>
                   </div>
 
