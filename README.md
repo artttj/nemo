@@ -266,13 +266,19 @@ nemo/
 
 ## Screenshots
 
-**Popup UI:**
+> Run `cd tests && node screenshot-readme.mjs` to generate fresh screenshots. The script will create a vault and capture the extension UI.
 
-<img src="tests/screenshots/pptr-01-popup.png" alt="Popup UI" style="max-height: 400px; width: auto;">
+**Main popup (locked):**
 
-**Auto-fill overlay on login forms:**
+![Locked](tests/screenshots/readme-locked.png)
 
-<img src="tests/screenshots/mock-03-password-focused.png" alt="Autofill overlay" style="max-height: 300px; width: auto;">
+**Vault unlocked with entries:**
+
+![Unlocked](tests/screenshots/readme-unlocked.png)
+
+**Autofill on login forms:**
+
+![Autofill](tests/screenshots/readme-autofill.png)
 
 ## License
 
