@@ -213,7 +213,7 @@ The overlay uses plain DOM, not `innerHTML`, to reduce XSS risk from page conten
 
 ### Sync
 
-Sync is optional. By default, encrypted vault data syncs to a Cloudflare D1 database hosted at `sync.nemo.y1.digital`. You are responsible for your own data, and for any risks that come with running sync on third-party infrastructure. This project is not liable for data loss, breaches, or third-party costs.
+Sync is optional. By default, encrypted vault data syncs to an anonymous Cloudflare D1 worker. You are responsible for your own data, and for any risks that come with running sync on third-party infrastructure. This project is not liable for data loss, breaches, or third-party costs.
 
 You can also run your own backend. It needs these endpoints:
 

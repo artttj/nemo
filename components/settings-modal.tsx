@@ -648,7 +648,7 @@ export function SettingsModal({
                       {pinStep === 'enter' ? 'Enter new PIN' : 'Confirm PIN'}
                     </label>
                     <input
-                      type="password"
+                      type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
                       maxLength={8}
@@ -661,7 +661,7 @@ export function SettingsModal({
                       }}
                       placeholder="4-8 digits"
                       autoFocus
-                      className="w-full bg-transparent text-[var(--text-primary)] text-[20px] font-mono tracking-[0.3em] text-center border-none outline-none placeholder:text-[var(--text-muted)] placeholder:text-[14px] placeholder:tracking-normal"
+                      className="w-full bg-transparent text-[var(--void)] text-[20px] font-mono tracking-[0.3em] text-center border-none outline-none placeholder:text-[var(--text-muted)] placeholder:text-[14px] placeholder:tracking-normal"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handlePinSubmit()
                         if (e.key === 'Escape') {
@@ -1004,8 +1004,8 @@ export function SettingsModal({
                       <Cloud size={12} className="text-[var(--text-tertiary)]" />
                       <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
                     </div>
-                    <p className="text-[13px] text-[var(--text-primary)] font-mono truncate" title={syncStatus.baseUrl || 'https://sync.nemo.y1.digital'}>
-                      {syncStatus.baseUrl || 'https://sync.nemo.y1.digital'}
+                    <p className="text-[13px] text-[var(--text-secondary)]">
+                      Anonymous Cloudflare D1 worker
                     </p>
                   </div>
 
@@ -1083,19 +1083,9 @@ export function SettingsModal({
                     <p className="text-[12px] text-[var(--text-tertiary)]">No account. No email. No tracking.</p>
                   </div>
 
-                  <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)] space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Cloud size={12} className="text-[var(--text-tertiary)]" />
-                      <span className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-medium">Sync Server</span>
-                    </div>
-                    <p className="text-[12px] text-[var(--text-primary)] font-mono break-all">
-                      https://sync.nemo.y1.digital
-                    </p>
-                  </div>
-
                   <div className="px-3 py-2.5 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
                     <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                      <strong className="text-[var(--text-primary)]">Opt-in only.</strong> Your encrypted vault syncs to a Cloudflare D1 database.
+                      <strong className="text-[var(--text-primary)]">Anonymous Sync.</strong> Your encrypted vault syncs to a Cloudflare D1 database.
                       By enabling sync, you acknowledge that you are responsible for your own credentials, data, and any charges.
                       This project is not liable for data loss, breaches, or third-party costs.
                     </p>
